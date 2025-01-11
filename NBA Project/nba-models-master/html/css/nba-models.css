@@ -1,0 +1,60 @@
+h1{
+  font-family: Open Sans, monospace;
+}
+
+.header{
+  padding: 5px;
+  padding-left: 20px; 
+  margin-left: -10px;
+  margin-top: -10px;
+  width: 110%;
+  background: #2c3e50;
+  color: white;
+  font-size: 30px;
+  font-family: Major Mono Display;
+}
+
+body{
+  background: #08131f;
+}
+
+.folder{
+  color: white;
+  background: #2c3e50;
+  box-shadow: 3px 3px 5px 6px #040f19;
+  margin: auto;
+  margin-top: 100px;
+  width: 85%;
+  height: 500px;
+  padding: 50px;
+  padding-top: 20px;
+}
+
+table {  
+  margin-top: 2rem;
+  color: #333; /* Lighten up font color */
+  font-family: Open Sans, sans-serif;
+  font-size: 17px;
+  width: 50%; 
+  border-collapse: collapse;
+  border-style: hidden;
+}
+
+td, th { 
+  border: 3px solid #CCC; 
+  height: 35px;
+}
+
+th {  
+/*    background: #F3F3F3; */
+  font-family: Major Mono Display;
+  font-size: 25px;
+  color: white;
+  font-weight: bold;
+}
+
+td {  
+/*  background: #FAFAFA;*/
+  text-align: left; /* Center our text */
+  color: white;
+}

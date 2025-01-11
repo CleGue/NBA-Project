@@ -1,0 +1,4 @@
+"0","#Chicago Bulls"
+"0","ind<-which(NBA_Salary_History$Team==""Chicago Bulls"")"
+"0","sal_m2<-NBA_Salary_History[ind,]"
+"0","ggplot(data=sal_m2, aes(x=Season, y=`Total Salary`/10**6,fill=`Total Salary`/10**6)) +geom_bar(stat=""identity"") + ylab(""Somme des salaires de l'équipe"") + xlab(""Saison"") + ggtitle(""Evolution masse salariale Chicago Bulls"")+coord_flip()"

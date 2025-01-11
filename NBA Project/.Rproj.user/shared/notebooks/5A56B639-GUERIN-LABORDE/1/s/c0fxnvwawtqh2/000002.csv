@@ -1,0 +1,2 @@
+"0","bpm_par_poste<-ggplot(data=season_stats4,aes(x=Year,y=(BPM),colour=Pos,group=Pos))+geom_line()+xlab(""Saison"")+ylab(paste0(""Moyenne de "", ""BPM""))+ggtitle(paste0(paste0(""Moyenne de "", ""BPM""),  "" par poste""))"
+"0","ggplotly(bpm_par_poste)"

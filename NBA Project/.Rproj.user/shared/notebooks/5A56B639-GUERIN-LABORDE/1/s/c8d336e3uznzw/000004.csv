@@ -1,0 +1,2 @@
+"0","country_prop<-country_prop[which(country_prop$Pays==""Other""),c(3)]"
+"0","time_ser=ts(country_prop,frequency=1,start=c(1997))"

@@ -1,0 +1,31 @@
+"0","library(dplyr); library(data.table)"
+"2","Warning message:
+"
+"2","Unknown or uninitialised column: `Year`. 
+"
+"2","le package ‘data.table’ a été compilé avec la version R 4.0.3"
+"2","data.table 1.13.4 using 4 threads (see ?getDTthreads).  Latest news: r-datatable.com
+"
+"2","
+Attachement du package : ‘data.table’
+
+"
+"2","The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second,
+    wday, week, yday, year
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+"
+"0","season_stats6<-season_stats2[,c(""Year"",""Pos"",""PTS"",""MP"",""G"",""BLK"",""PER"",""BPM"",""Player"")]"
+"0","season_stats6$MPPG<-season_stats6$MP/season_stats6$G"
+"0","season_stats6<-season_stats6 %>%"
+"0","  filter(MPPG>30) %>%"
+"0","  filter(G>50)%>%"
+"0",""
+"0","# keep only top 3 ranks (including ties) & order by ID"
+"0","  filter(rank(desc(BPM), ties.method = ""min"") <= 10)"

@@ -1,0 +1,178 @@
+"0","library(shiny)"
+"0","library(readxl)"
+"0","library(readr)"
+"2","le package ‘readr’ a été compilé avec la version R 4.0.3"
+"0","library(readxl)"
+"0","library(dplyr)"
+"2","
+Attachement du package : ‘dplyr’
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(plsgenomics)"
+"2","le package ‘plsgenomics’ a été compilé avec la version R 4.0.3"
+"2","For any news related to the 'plsgenomics' package (update, corrected bugs), please check http://thoth.inrialpes.fr/people/gdurif/
+"
+"2","C++ based sparse PLS routines will soon be available on the CRAN in the new 'fastPLS' package.
+"
+"0","library(mlbench)"
+"2","le package ‘mlbench’ a été compilé avec la version R 4.0.3"
+"0","library(e1071)"
+"2","le package ‘e1071’ a été compilé avec la version R 4.0.3"
+"0","library(klaR)"
+"2","le package ‘klaR’ a été compilé avec la version R 4.0.3"
+"2","Le chargement a nécessité le package : MASS
+"
+"2","
+Attachement du package : ‘MASS’
+
+"
+"2","The following object is masked from ‘package:dplyr’:
+
+    select
+
+"
+"0","library(MASS)"
+"0","library(class)"
+"0","library(glmnet)"
+"2","le package ‘glmnet’ a été compilé avec la version R 4.0.3"
+"2","Le chargement a nécessité le package : Matrix
+"
+"2","Loaded glmnet 4.0-2
+"
+"0","library(ROCR)"
+"0","library(randomForest)"
+"2","randomForest 4.6-14
+"
+"2","Type rfNews() to see new features/changes/bug fixes.
+"
+"2","
+Attachement du package : ‘randomForest’
+
+"
+"2","The following object is masked from ‘package:dplyr’:
+
+    combine
+
+"
+"0","library(readr)"
+"0","library(readr)"
+"0","library(dplyr)"
+"0","library(ggplot2)"
+"2","
+Attachement du package : ‘ggplot2’
+
+"
+"2","The following object is masked from ‘package:randomForest’:
+
+    margin
+
+"
+"0","library(scales)"
+"2","
+Attachement du package : ‘scales’
+
+"
+"2","The following object is masked from ‘package:readr’:
+
+    col_factor
+
+"
+"0","library(plotly)"
+"2","le package ‘plotly’ a été compilé avec la version R 4.0.3"
+"2","Registered S3 method overwritten by 'data.table':
+  method           from
+  print.data.table     
+"
+"2","
+Attachement du package : ‘plotly’
+
+"
+"2","The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+"
+"2","The following object is masked from ‘package:MASS’:
+
+    select
+
+"
+"2","The following object is masked from ‘package:stats’:
+
+    filter
+
+"
+"2","The following object is masked from ‘package:graphics’:
+
+    layout
+
+"
+"0","library(lubridate)"
+"2","le package ‘lubridate’ a été compilé avec la version R 4.0.3"
+"2","
+Attachement du package : ‘lubridate’
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+"
+"0","library(tidyr)"
+"2","le package ‘tidyr’ a été compilé avec la version R 4.0.3"
+"2","
+Attachement du package : ‘tidyr’
+
+"
+"2","The following objects are masked from ‘package:Matrix’:
+
+    expand, pack, unpack
+
+"
+"0","library(gridExtra)"
+"2","
+Attachement du package : ‘gridExtra’
+
+"
+"2","The following object is masked from ‘package:randomForest’:
+
+    combine
+
+"
+"2","The following object is masked from ‘package:dplyr’:
+
+    combine
+
+"
+"0","library(readxl)"
+"0","library(FactoMineR)"
+"2","le package ‘FactoMineR’ a été compilé avec la version R 4.0.3"
+"0","library(randomForest)"
+"0","library(stringr)"
+"0","library(forecast)"
+"2","le package ‘forecast’ a été compilé avec la version R 4.0.3"
+"2","Registered S3 method overwritten by 'quantmod':
+  method            from
+  as.zoo.data.frame zoo 
+"
+"0","library(tseries)"
+"2","le package ‘tseries’ a été compilé avec la version R 4.0.3"
+"2","
+    ‘tseries’ version: 0.10-48
+
+    ‘tseries’ is a package for time series analysis and
+    computational finance.
+
+    See ‘library(help=""tseries"")’ for details.
+
+"

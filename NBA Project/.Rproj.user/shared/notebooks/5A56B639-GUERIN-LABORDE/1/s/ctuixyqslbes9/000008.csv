@@ -1,0 +1,2 @@
+"0","mns_par_poste<-ggplot(data=season_stats4,aes(x=Year,y=(Minutes/Matches),colour=Pos,group=Pos))+geom_line()+xlab(""Saison"")+ylab(paste0(""Moyenne de "", ""Minutes""))+ggtitle(paste0(paste0(""Moyenne de "", ""Minutes""),  "" par matches par poste""))"
+"0","ggplotly(mns_par_poste)"

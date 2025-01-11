@@ -1,0 +1,1414 @@
+---
+title: "La NBA sous tous ses angles"
+author: "Clement GUERIN & Maxime LABORDE"
+date: "18/02/2021"
+#output:
+ # html_document: default
+#  pdf_document: default
+output:
+    rmdformats::material:
+      
+      highlight: kate
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, echo=FALSE, cache=FALSE,warning=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               fig.align = "center",
+               fig.retina = 2,
+               fig.width = 8,
+               fig.height = 5,
+               cache.lazy = FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+```{r include=FALSE}
+library(shiny)
+library(readxl)
+library(readr)
+library(readxl)
+library(dplyr)
+library(plsgenomics)
+library(mlbench)
+library(e1071)
+library(klaR)
+library(MASS)
+library(class)
+library(glmnet)
+library(ROCR)
+library(randomForest)
+library(readr)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(plotly)
+library(lubridate)
+library(tidyr)
+library(gridExtra)
+library(readxl)
+library(FactoMineR)
+library(randomForest)
+library(stringr)
+library(forecast)
+library(tseries)
+library(class)
+library(MASS)
+library(cowplot)
+```
+
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+# NBA Salary Team
+NBA_Salary_History <- read_excel("NBA_Salary_History.xlsx", 
+                                 sheet = "Team Salaries")
+
+# NBA Salary Player
+NBA_Salary_History_Players <- read_excel("NBA_Salary_History.xlsx", 
+                                         sheet = "Player Salaries")
+#Modif d'une saison avec erreur
+NBA_Salary_History_Players$Season[which(NBA_Salary_History_Players$Season=="1997-97")]<-"1996-97"
+
+
+# Team names update
+ind<-which(NBA_Salary_History$Team=="New Orleans Hornets")
+NBA_Salary_History[ind,2]<-"New Orleans Pelicans"
+
+ind<-which(NBA_Salary_History$Team=="Charlotte Bobcats")
+NBA_Salary_History[ind,2]<-"Charlotte Hornets"
+
+ind<-which(NBA_Salary_History$Team=="New Jersey Nets")
+NBA_Salary_History[ind,2]<-"Brooklyn Nets"
+
+ind<-which(NBA_Salary_History$Team=="Washington Bullets")
+NBA_Salary_History[ind,2]<-"Washington Wizards"
+
+ind<-which(NBA_Salary_History$Team=="Vancouver Grizzlies")
+NBA_Salary_History[ind,2]<-"Memphis Grizzlies"
+
+ind<-which(NBA_Salary_History$Team=="Seattle SuperSonics")
+NBA_Salary_History[ind,2]<-"Oklahoma City Thunder"
+
+
+
+# Importations du jeu de données des MVP
+MVP <- read_excel("NBA Finals and MVP.xlsx")
+
+seasons <- read_csv("all_seasons.csv")
+
+
+seasons$Year<-paste(substr(seasons$season,start=1,stop=2),substr(seasons$season,start=6,stop=7),sep="")
+seasons$Year[which(seasons$Year==1900)]<-2000
+season_statsMVP = merge(seasons, MVP, by.x=c("Year"),by.y=c("Year"))
+season_statsMVP<-season_statsMVP[,1:30]
+
+# Changement du format du nom et rajout colonne MVP binaire
+
+season_statsMVP$MVP_number<-0
+annee<-unique(season_statsMVP$Year)
+tab<-strsplit(season_statsMVP$player_name," ")
+vect<-c()
+index<-0
+
+for (i in 1:length(tab)){
+  tab[[i]][1]<-paste0(substr(tab[[i]][1],start=1,stop=1),". ")
+  vect<-c(vect,paste0(tab[[i]][1],tab[[i]][2]))
+}
+season_statsMVP$player_name<-vect
+
+for (i in annee){
+  ind_y<-which(season_statsMVP$Year==i)
+  ind_p<-which(season_statsMVP$player_name[ind_y]==season_statsMVP$`MVP Name`[ind_y])
+  season_statsMVP$MVP_number[ind_p+index]<-1
+  index<-length(ind_y)+index
+}
+indice<-which(season_statsMVP$player_name=="S. Curry")
+indice_2<-which(season_statsMVP$team_abbreviation[indice]=="PHX")
+indice_3<-which(season_statsMVP$team_abbreviation[indice]=="SAC")
+season_statsMVP$MVP_number[c(indice[indice_2],indice[indice_3])]<-0
+
+ind<-which(season_statsMVP$MVP_number==1)
+#season_statsMVP[ind,]
+
+season_statsMVP<-season_statsMVP[,-c(23:30)]
+
+data_1<-season_statsMVP
+
+# Deuxième jeu de données stats MVP
+
+# Importation 
+
+annee<-unique(MVP$Year)
+dat<-read_csv(paste0("nba-models-master/season-stats-advanced/",1997,".csv"))
+dat<-cbind(dat,rep(1997,nrow(dat)))
+tot<-dat
+#tot
+colnames(tot)[30]<-"season"
+#tot
+
+annee<-as.character(annee[-c(1:48)])
+#annee
+for (i in annee){
+  dat<-read_csv(paste0("nba-models-master/season-stats-advanced/",i,".csv"))
+  dat<-cbind(dat,rep(i,nrow(dat)))
+  colnames(dat)[30]<-"season"
+  dat
+  tot<-rbind(tot,dat)
+}
+#tot
+#unique(tot$season)
+
+
+
+# Changement formatage du nom numéro 1
+
+annee<-unique(tot$season)
+tab<-strsplit(tot$Player,"\\",fixed=TRUE)
+#length(tab)
+#length(tot$Player)
+vect<-c()
+index<-0
+
+for (i in 1:length(tab)){
+  vect<-c(vect,tab[[i]][1])
+}
+#length(vect)
+tot$Player<-vect
+
+# Join sur la saison du jeu de données réponse MVP et jeu de données stats MVP
+
+
+season_statsMVP = merge(tot, MVP, by.x=c("season"),by.y=c("Year"))
+season_statsMVP<-season_statsMVP[,c(1:30,37)]
+
+# Formatage du nom numéro 2
+
+
+tab<-strsplit(season_statsMVP$Player," ")
+vect<-c()
+index<-0
+
+for (i in 1:length(tab)){
+  tab[[i]][1]<-paste0(substr(tab[[i]][1],start=1,stop=1),". ")
+  vect<-c(vect,paste0(tab[[i]][1],tab[[i]][2]))
+}
+season_statsMVP$Player<-vect
+
+season_statsMVP$Player<-gsub("\\*", "",season_statsMVP$Player)
+#season_statsMVP
+
+# Création MVP Number colonnnes
+
+
+season_statsMVP$MVP_number<-0
+for (i in annee){
+  ind_y<-which(season_statsMVP$season==i)
+  ind_p<-which(season_statsMVP$Player[ind_y]==season_statsMVP$`MVP Name`[ind_y])
+  season_statsMVP$MVP_number[ind_p+index]<-1
+  index<-length(ind_y)+index
+}
+indice<-which(season_statsMVP$Player=="S. Curry")
+indice_2<-which(season_statsMVP$Tm[indice]=="PHO")
+indice_3<-which(season_statsMVP$Tm[indice]=="SAC")
+season_statsMVP$MVP_number[c(indice[indice_2],indice[indice_3])]<-0
+
+ind<-which(season_statsMVP$MVP_number==1)
+#season_statsMVP[ind,]
+
+season_statsMVP<-season_statsMVP[,-31]
+
+
+data_2<-season_statsMVP
+
+
+# DATA_1
+
+indice<-which(data_1$team_abbreviation=="NJN")
+data_1$team_abbreviation[indice]<-"BKN"
+
+indice<-which(data_1$team_abbreviation=="SEA")
+data_1$team_abbreviation[indice]<-"OKC"
+
+indice<-which(data_1$team_abbreviation=="VAN")
+data_1$team_abbreviation[indice]<-"MEM"
+
+indice<-which(data_1$team_abbreviation=="CHH")
+data_1$team_abbreviation[indice]<-"CHA"
+
+indice<-which(data_1$team_abbreviation=="NOK")
+data_1$team_abbreviation[indice]<-"NOP"
+
+indice<-which(data_1$team_abbreviation=="NOH")
+data_1$team_abbreviation[indice]<-"NOP"
+
+
+# DATA_2
+
+indice<-which(data_2$Tm=="WSB")
+data_2$Tm[indice]<-"WAS"
+
+indice<-which(data_2$Tm=="VAN")
+data_2$Tm[indice]<-"MEM"
+
+indice<-which(data_2$Tm=="CHH")
+data_2$Tm[indice]<-"CHA"
+
+indice<-which(data_2$Tm=="NOK")
+data_2$Tm[indice]<-"NOP"
+
+indice<-which(data_2$Tm=="CHO")
+data_2$Tm[indice]<-"CHA"
+
+indice<-which(data_2$Tm=="NJN")
+data_2$Tm[indice]<-"BKN"
+
+indice<-which(data_2$Tm=="PHO")
+data_2$Tm[indice]<-"PHX"
+
+indice<-which(data_2$Tm=="NOH")
+data_2$Tm[indice]<-"NOP"
+
+indice<-which(data_2$Tm=="SEA")
+data_2$Tm[indice]<-"OKC"
+
+indice<-which(data_2$Tm=="TOT")
+data_2$Tm[indice]<-"TOR"
+
+indice<-which(data_2$Tm=="BRK")
+data_2$Tm[indice]<-"BKN"
+
+
+data_1$player_name<-str_to_lower(data_1$player_name)
+data_2$Player<-str_to_lower(data_2$Player)
+season_statsMVP <- merge(data_1, data_2, by.x=c("player_name","Year","team_abbreviation"),by.y=c("Player","season","Tm"))
+
+season_statsMVP<-season_statsMVP[,-c(5,13,23)]
+colnames(season_statsMVP)[48]<-"MVP_number"
+
+ind<-which(season_statsMVP$G>50)
+da<-season_statsMVP[ind,c(1,2,15,22,24)] %>% 
+  group_by(Year, Pos) %>% 
+  slice(which.max(net_rating/G))
+
+
+# TEAM
+
+players<- read.csv("nba_data/Players.csv")
+season_stats<- read.csv("nba_data/Seasons_Stats.csv")
+player_salary <- read_excel("NBA_Salary_History.xlsx", 
+                            sheet = "Player Salaries")
+
+season_stats2<-season_stats
+rowtokick<-c()
+poste<-c("PG","SG","SF","PF","C")
+for (i in seq(1,nrow(season_stats2))){
+  if (!(season_stats2$Pos[i] %in% poste)){
+    rowtokick<-c(rowtokick,i)
+  }
+}
+season_stats2<-season_stats2[-rowtokick,]
+
+#season_stats4<-season_stats2[,c("Year","Pos","PTS","MP","G","BLK")]
+#season_stats4$MPPG<-season_stats4$MP/season_stats4$G
+#season_stats4<-season_stats4 %>%
+#  filter(MPPG>30) %>%
+#  group_by(Year, Pos) %>%
+#  summarise(sum_PTS=sum(PTS),
+#            mean_PTS=mean(PTS),
+#            sum_MP=sum(MP),
+#            mean_MP=mean(MP),
+#            sum_BLK=sum(BLK),
+#            mean_BLK=mean(BLK),
+#            mean_G=mean(G))
+
+#Top joueurs
+season_stats4<-season_stats2[,c("Year","Pos","PTS","MP","G","BLK","AST","STL","BPM")]
+season_stats4$MPPG<-season_stats4$MP/season_stats4$G
+season_stats4<-season_stats4 %>%
+  filter(MPPG>30) %>%
+  filter(G>50)%>%
+  group_by(Year, Pos) %>%
+  summarise(sum_PTS=sum(PTS),
+            Points=mean(PTS),
+            sum_MP=sum(MP),
+            Minutes=mean(MP),
+            sum_BLK=sum(BLK),
+            Bloquages=mean(BLK),
+            Matches=mean(G),
+            Passes_Decisives=mean(AST),
+            Interceptions=mean(STL),
+            BPM=mean(BPM))
+
+
+rankings <- data.frame()
+for (i in seq(1977,2019)){
+  ranking<- read.csv(paste(paste("nba-models-master/season-standings/",i,sep=""),".csv",sep=""))
+  if (i<1999){
+    ranking<-ranking[,1:15]
+    ranking<-ranking[,-c(8,9,10,11,12,13)]
+  }
+  else if (i==1999){
+    ranking<-ranking[,1:13]
+    ranking<-ranking[,-c(8,9,10,11)]
+  }
+  else if(i<2005){
+    ranking<-ranking[,1:15]
+    ranking<-ranking[,-c(8,9,10,11,12,13)]
+  }
+  else if(i>=2005){
+    ranking<-ranking[,1:17]
+    ranking<-ranking[,-c(8,9,10,11,12,13,14,15)]
+  }
+  ranking$Year<-i
+  rankings<-rbind(rankings,ranking)
+}
+
+rankings<-rankings[,c(2,3,4,5,10)]
+for (i in seq(1,nrow(rankings))){
+  rankings$Overall[i]<-as.numeric(str_split(rankings$Overall[i], "-")[[1]][1])/(as.numeric(str_split(rankings$Overall[i], "-")[[1]][2])+as.numeric(str_split(rankings$Overall[i], "-")[[1]][1]))
+  
+  rankings$Home[i]<-as.numeric(str_split(rankings$Home[i], "-")[[1]][1])/(as.numeric(str_split(rankings$Home[i], "-")[[1]][2])+as.numeric(str_split(rankings$Home[i], "-")[[1]][1]))
+  
+  rankings$Road[i]<-as.numeric(str_split(rankings$Road[i], "-")[[1]][1])/(as.numeric(str_split(rankings$Road[i], "-")[[1]][2])+as.numeric(str_split(rankings$Road[i], "-")[[1]][1]))
+}
+
+rankings$team_name<-rankings$Team
+ind<-which(rankings$Team=="Charlotte Bobcats")
+rankings$team_name[ind]<-"Charlotte Hornets"
+
+ind<-which(rankings$Team=="New Orleans Hornets")
+rankings$team_name[ind]<-"New Orleans Pelicans"
+
+ind<-which(rankings$Team=="New Orleans/Oklahoma City Hornets")
+rankings$team_name[ind]<-"New Orleans Pelicans"
+
+ind<-which(rankings$Team=="Seattle SuperSonics")
+rankings$team_name[ind]<-"Oklahoma City Thunder"
+
+ind<-which(rankings$Team=="Seattle SuperSonics")
+rankings$team_name[ind]<-"Oklahoma City Thunder"
+
+ind<-which(rankings$Team=="Vancouver Grizzlies")
+rankings$team_name[ind]<-"Memphis Grizzlies"
+
+ind<-which(rankings$Team=="New Jersey Nets")
+rankings$team_name[ind]<-"Brooklyn Nets"
+
+ind<-which(rankings$Team=="Washington Bullets")
+rankings$team_name[ind]<-"Washington Wizards"
+
+ind<-which(rankings$Team=="Kansas City Kings")
+rankings$team_name[ind]<-"Sacramento Kings"
+
+ind<-which(rankings$Team=="New Orleans Jazz")
+rankings$team_name[ind]<-"Utah Jazz"
+
+ind<-which(rankings$Team=="Buffalo Braves")
+rankings$team_name[ind]<-"Los Angeles Clippers"
+
+ind<-which(rankings$Team=="New York Nets")
+rankings$team_name[ind]<-"Brooklyn Nets"
+
+ind<-which(rankings$Team=="San Diego Clippers")
+rankings$team_name[ind]<-"Los Angeles Clippers"
+
+
+rankings2<-rankings[,c("Overall","Home","Road","Year","team_name")]
+rankings2<-rankings2 %>%
+  group_by(team_name) %>%
+  summarise(mean_O=mean(as.numeric(Overall)),
+            mean_H=mean(as.numeric(Home)),
+            mean_R=mean(as.numeric(Road)))
+
+#rankings
+rankings3<-rankings[,c("Overall","Home","Road","Year","team_name")]
+rankings3<-rankings3 %>%
+  group_by(team_name,Year) %>%
+  summarise(mean_O=mean(as.numeric(Overall)),
+            mean_H=mean(as.numeric(Home)),
+            mean_R=mean(as.numeric(Road)))
+
+
+#aggregate(MVP$`Eastern Champion`
+
+#### vb style -----------------
+VB_style <- function(msg = 'Hello', style="font-size: 100%;"){
+  tags$p( msg , style = style )
+}
+#tableau
+tab1<-as.data.frame(table(MVP$`NBA Champion`))
+tab2<-as.data.frame(table(MVP$`Eastern Champion`))
+tab3<-as.data.frame(table(MVP$`Western Champion`))
+tab_tot<-merge(tab1, tab2, by.x=c("Var1"),by.y=c("Var1"),all.x = TRUE,all.y=TRUE)
+tab_tot<-merge(tab_tot, tab3, by.x=c("Var1"),by.y=c("Var1"),all.x = TRUE,all.y=TRUE)
+colnames(tab_tot)<-c("Team","Champion","Eastern","Weastern")
+ind<-which(tab_tot$Eastern>0)
+tab_tot$Weastern[ind]<-0
+ind<-which(tab_tot$Weastern>0)
+tab_tot$Eastern[ind]<-0
+tab_tot[22:30,2]<-0
+
+season_stats6<-season_stats2[,c("Year","Pos","PTS","MP","G","BLK","AST","STL","BPM","PER","Player","Tm")]
+ind<-which(season_stats6$Player=="Eddie Johnson" & season_stats6$Pos=="SF")
+season_stats6$Player[ind]<-"Eddie Johnson*"
+ind<-which(season_stats6$Player=="Gerald Henderson" & season_stats6$Pos=="SG")
+season_stats6$Player[ind]<-"Gerald Henderson*"
+ind<-which(season_stats6$Player=="Mike Dunleavy" & season_stats6$Pos=="PG")
+season_stats6$Player[ind]<-"Mike Dunleavy*"
+ind<-which(season_stats6$Player=="George Johnson" & season_stats6$Pos=="PF")
+season_stats6$Player[ind]<-"George Johnson*"
+season_stats7<-season_stats6%>%
+  group_by(Player)%>%
+  filter(Tm!="TOT")%>%
+  summarise(sum_PTS=sum(PTS),
+            mean_PTS=mean(PTS),
+            sum_BLK=sum(BLK),
+            mean_BLK=mean(BLK),
+            sum_STL=sum(STL),
+            mean_STL=mean(STL),
+            sum_AST=sum(AST),
+            mean_AST=mean(AST),
+            sum_G=sum(G),
+            mean_G=mean(G))
+
+
+#Pas top joueurs
+season_stats5<-season_stats2[,c("Year","Pos","PTS","MP","G","BLK","AST","STL","BPM")]
+season_stats5<-season_stats5 %>%
+  group_by(Year, Pos) %>%
+  summarise(sum_PTS=sum(PTS),
+            Points=mean(PTS),
+            sum_MP=sum(MP),
+            Minutes=mean(MP),
+            sum_BLK=sum(BLK),
+            Bloquages=mean(BLK),
+            Matches=mean(G),
+            Passes_Decisives=mean(AST),
+            Interceptions=mean(STL),
+            BPM=mean(BPM))
+
+#### stats age ###
+
+### Question : Est ce que l'age influes sur les performances ?? 
+
+### Question : Trop jeune bonne idée d'inclure dans la NBA ??
+
+
+#### A prendre Clement####
+season_stats_age<-season_statsMVP[which(season_statsMVP$Age<41),]
+t<-aggregate(. ~ Age,season_stats_age[,c(12,13,14,24,25,23,42,46)] , mean)
+library(plyr)
+t<-rename(t,
+                      c("Age"="Age",
+                        "pts"="Points",
+                        "reb"="Rebonds",
+                        "ast"="Passes",
+                        "G"="Matches",
+                        "MP"="Minutes",
+                        "WS/48"="Impact Victoire",
+                        "BPM"="Note du joueur"
+                      )
+)
+detach("package:plyr", unload=TRUE)
+t<-as.data.frame(t)
+
+t2<-aggregate(. ~ draft_year,season_statsMVP[,c(9,13,14,15,24,12)] , mean)
+t2<-as.data.frame(t2)
+#t2
+#### A prendre Clement####
+
+## Quel draf est la meilleure ??
+
+### Injuries ###
+
+## Est ce que il a y de plus en plus de blessure en NBA??
+
+## Quels sont les raisons ??
+
+## Peut on les prédire
+
+
+
+
+
+#### A prendre AJout stats #####
+library(plyr)
+stats_players<-season_statsMVP[,c(1,2,3,5,6,12,13,14,22,24,25,42,46)]
+stats_players<-rename(stats_players,
+    c("player_name"="Joueur",
+      "Year"="Annee",
+      "team_abbreviation"="Equipe",
+      "player_height"="Taille",
+      "player_weight"="Poids",
+      "pts"="Points",
+      "reb"="Rebonds",
+      "ast"="Passes",
+      "Pos"="Poste",
+      "G"="Matches",
+      "MP"="Minutes",
+      "WS/48"="Impact Victoire",
+      "BPM"="Note du joueur"
+      )
+  )
+stats_players<-stats_players[,c("Joueur",
+      "Annee",
+      "Equipe",
+      "Poste",
+      "Taille",
+      "Poids",
+      "Points",
+      "Rebonds",
+      "Passes",
+      "Matches",
+      "Minutes",
+      "Impact Victoire",
+      "Note du joueur")]
+
+stats_players$Taille<-round(stats_players$Taille,0)
+stats_players$Poids<-round(stats_players$Poids,0)
+detach("package:plyr", unload=TRUE)
+
+#Stats country
+df<-plyr::count(season_statsMVP$country)
+df<-df[which(df$freq>50),1]
+country_list<-as.vector(df)
+ind<-which(season_statsMVP$country %in% country_list)
+season_stats_country<-season_statsMVP[ind,]
+
+season_stats_country2<-season_statsMVP
+season_stats_country2$country[which(season_statsMVP$country!="USA")]<-"Other"
+
+#### Jusquici ####
+
+#A prendre !!!! test prediction baleze
+
+MVPtot <- data.frame("MVP reel"=character(),
+                     "Annee"=character(), 
+                     "MVP predit"=character(),
+                     "MVP_knn"=character(),
+                     "MVP_LDA"=character(),
+                     "MVP_NB"=character(),
+                     "Same"=character(),
+                     "Same2"=character(),
+                     "Same3"=character(),
+                     "Same4"=character()) 
+
+
+line=1
+
+#init
+season_statsMVP2<-season_statsMVP[,-c(5,6,38,43)]
+season_statsMVP2<-na.omit(season_statsMVP2)
+Xkeep<-season_statsMVP2[,4]
+season_statsMVP2<-season_statsMVP2[,-4]
+for(i in unique(season_statsMVP$Year)){
+  indice<-which(season_statsMVP2$Year!=i)
+  Xkeeptest<-Xkeep[-indice]
+  X<-season_statsMVP2[,-c(43)]
+  Year<-X$Year[-indice]
+  Player<-X$player_name[-indice]
+  nums <- unlist(lapply(X, is.numeric))
+  Y<-season_statsMVP2[,43]
+  
+  #RF
+  Xtrain<-X[indice,]
+  Xtest<-X[-indice,]
+  Ytrain<-Y[indice]
+  Ytest<-Y[-indice]
+  
+  #knn et lda
+  X_knn<-X[ , nums]
+  X_knn<-scale(X_knn, center = TRUE, scale = TRUE)
+  Xtrain_knn<-X_knn[indice,]
+  Xtest_knn<-X_knn[-indice,]
+  
+  #NB
+  data<-cbind(X_knn,Y)
+  data<-as.data.frame(data)
+  datatrain<-data[indice,]
+  Xtest_nb<-as.data.frame(Xtest_knn[-indice,])
+  
+  #### Processing ####
+  #rf
+  rf<-randomForest(ntree=5,x=Xtrain,y=as.factor(Ytrain))
+  pred<-predict(rf,Xtest,type="prob")
+  MVPtest<-cbind(Xtest,pred)
+  MVPtest<-cbind(MVPtest,Xkeeptest)
+  
+  #knn
+  pred_test<-class::knn(Xtrain_knn, Xtest_knn, as.factor(Ytrain), k=51,prob=TRUE)
+  R1<-as.numeric(attr(pred_test,"prob"))
+  MVPtest_knn<-cbind(Player,Xtest_knn)
+  MVPtest_knn<-cbind(MVPtest_knn,R1)
+  MVPtest_knn<-cbind(MVPtest_knn,Year)
+  MVPtest_knn<-cbind(MVPtest_knn,Xkeeptest)
+  MVPtest_knn<-as.data.frame(MVPtest_knn)
+  
+  #LDA
+  g_lda<-lda(Xtrain_knn,grouping = as.factor(Ytrain))
+  pred_test_lda<-predict(g_lda,Xtest_knn)$posterior
+  MVPtest_lda<-cbind(Player,Xtest_knn)
+  MVPtest_lda<-cbind(MVPtest_lda,pred_test_lda)
+  MVPtest_lda<-cbind(MVPtest_lda,Year)
+  MVPtest_lda<-cbind(MVPtest_lda,Xkeeptest)
+  MVPtest_lda<-as.data.frame(MVPtest_lda)
+  
+  #Naive Bayes
+  g_naive <- naiveBayes(as.factor(Y) ~ ., data = datatrain)
+  pred_test_nb<-predict(g_naive, Xtest_knn, type = "raw")
+  score_bayes <-pred_test_nb[,2]
+  MVPtest_nb<-cbind(Player,Xtest_knn)
+  MVPtest_nb<-cbind(MVPtest_nb,pred_test_nb)
+  MVPtest_nb<-cbind(MVPtest_nb,Year)
+  MVPtest_nb<-cbind(MVPtest_nb,Xkeeptest)
+  MVPtest_nb<-as.data.frame(MVPtest_nb)
+  
+  
+  #### Prediction ####
+  year<-unique(MVPtest$Year)
+  ind<-c()
+  
+  #RF
+  for (i in year){
+    indyear<-MVPtest$X[which(MVPtest$Year==i)]
+    maxi<-max(MVPtest$"1"[which(MVPtest$X %in% indyear & MVPtest$MP>100)])
+    indexX<-MVPtest$X[which(MVPtest$"1"==maxi & MVPtest$Year==i)]
+    ind<-cbind(ind,indexX)
+  }
+  MVPpred<-MVPtest[which(MVPtest$X %in% ind),c(1,2,44)]
+  MVPpred<-MVPpred[order(MVPpred$Year),]
+  
+  #KNN
+  ind_knn<-c()
+  for (i in year){
+    #indyear<-MVPtest_knn$Xkeeptest[which(MVPtest_knn$Year==i)]
+    ###attention
+    indyear<-MVPtest_knn$Xkeeptest[which(MVPtest_knn$Year==i & MVPtest$MP>100)]
+    mini<-min(MVPtest_knn$R1[which(MVPtest_knn$Xkeeptest %in% indyear)])
+    indexX<-MVPtest_knn$Xkeeptest[which(MVPtest_knn$R1==mini & MVPtest_knn$Year==i)]
+    ind_knn<-cbind(ind_knn,indexX)
+  }
+  MVPpred_knn<-MVPtest_knn[which(MVPtest_knn$Xkeeptest %in% ind_knn),c(1,35,36)]
+  MVPpred_knn<-MVPpred_knn[order(MVPpred_knn$Year),]
+  
+  #LDA
+  ind_lda<-c()
+  for (i in year){
+    indyear<-MVPtest_lda$Xkeeptest[which(MVPtest_lda$Year==i & MVPtest$MP>100)]
+    mini<-min(MVPtest_lda$"1"[which(MVPtest_lda$Xkeeptest %in% indyear)])
+    indexX<-MVPtest_lda$Xkeeptest[which(MVPtest_lda$"1"==mini & MVPtest_lda$Year==i)]
+    ind_lda<-cbind(ind_lda,indexX)
+  }
+  MVPpred_lda<-MVPtest_lda[which(MVPtest_lda$Xkeeptest %in% ind_lda),c(1,36,37)]
+  MVPpred_lda<-MVPpred_lda[order(MVPpred_lda$Year),]
+  
+  #NB
+  ind_nb<-c()
+  for (i in year){
+    indyear<-MVPtest_nb$Xkeeptest[which(MVPtest_nb$Year==i & MVPtest$MP>100)]
+    maxi<-min(MVPtest_nb$"1"[which(MVPtest_nb$Xkeeptest %in% indyear)])
+    indexX<-MVPtest_nb$Xkeeptest[which(MVPtest_nb$"1"==maxi & MVPtest_nb$Year==i)]
+    ind_nb<-cbind(ind_nb,indexX)
+  }
+  MVPpred_nb<-MVPtest_nb[which(MVPtest_nb$Xkeeptest %in% ind_nb),c(1,36,37)]
+  MVPpred_nb<-MVPpred_nb[order(MVPpred_nb$Year),]
+  
+  
+  
+  #### Vrai MVP ####
+  ind<-c()
+  for (i in year){
+    indyear<-season_statsMVP$X1[which(season_statsMVP$Year==i)]
+    maxi<-max(season_statsMVP$MVP_number[which(season_statsMVP$X1 %in% indyear)])
+    indexX<-season_statsMVP$X1[which(season_statsMVP$MVP_number==maxi &season_statsMVP$Year==i)]
+    ind<-cbind(ind,indexX)
+  }
+  MVPtrue<-season_statsMVP[which(season_statsMVP$X1 %in% ind),c(1,2)]
+  MVPtrue<-MVPtrue[order(MVPtrue$Year),]
+  
+  
+  #### Creation table a afficher ####
+  MVPtoprint<-merge(MVPpred,MVPtrue,by.x="Year",by.y="Year")
+  MVPtoprint<-plyr::rename(MVPtoprint,c("player_name.x"="MVP predit",
+                                        "Year"="Annee","player_name.y"="MVP reel"
+  ))
+  MVPtoprint2<-merge(MVPtoprint,MVPpred_knn,by.x = "Annee",by.y="Year")
+  MVPtoprint2<-plyr::rename(MVPtoprint2,c("MVP predit"="MVP predit",
+                                          "Annee"="Annee","MVP reel"="MVP reel","Player"="MVP_knn"
+  ))
+  
+  MVPtoprint3<-merge(MVPtoprint2,MVPpred_lda,by.x = "Annee",by.y="Year")
+  MVPtoprint3<-plyr::rename(MVPtoprint3,c("MVP predit"="MVP predit",
+                                          "Annee"="Annee","MVP reel"="MVP reel","MVP_knn"="MVP_knn","Player"="MVP_LDA"
+  ))
+  
+  MVPtoprint4<-merge(MVPtoprint3,MVPpred_nb,by.x = "Annee",by.y="Year")
+  MVPtoprint4<-plyr::rename(MVPtoprint4,c("MVP predit"="MVP predit",
+                                          "Annee"="Annee","MVP reel"="MVP reel","MVP_knn"="MVP_knn","MVP_LDA"="MVP_LDA","Player"="MVP_NB"
+  ))
+  
+  MVPtoprint4<-MVPtoprint4[,c("MVP reel", "Annee","MVP predit","MVP_knn","MVP_LDA","MVP_NB")]
+  MVPtoprint4$Same<-as.numeric(MVPtoprint4$Annee)
+  MVPtoprint4$Same[which(MVPtoprint4$`MVP reel`==MVPtoprint4$`MVP predit`)]<-1
+  MVPtoprint4$Same[which(MVPtoprint4$`MVP reel`!=MVPtoprint4$`MVP predit`)]<-0
+  MVPtoprint4$Same2<-as.numeric(MVPtoprint4$Annee)
+  MVPtoprint4$Same2[which(MVPtoprint4$`MVP reel`==MVPtoprint4$`MVP_knn`)]<-1
+  MVPtoprint4$Same2[which(MVPtoprint4$`MVP reel`!=MVPtoprint4$`MVP_knn`)]<-0
+  MVPtoprint4$Same3<-as.numeric(MVPtoprint4$Annee)
+  MVPtoprint4$Same3[which(MVPtoprint4$`MVP reel`==MVPtoprint4$`MVP_LDA`)]<-1
+  MVPtoprint4$Same3[which(MVPtoprint4$`MVP reel`!=MVPtoprint4$`MVP_LDA`)]<-0
+  MVPtoprint4$Same4<-as.numeric(MVPtoprint4$Annee)
+  MVPtoprint4$Same4[which(MVPtoprint4$`MVP reel`==MVPtoprint4$`MVP_NB`)]<-1
+  MVPtoprint4$Same4[which(MVPtoprint4$`MVP reel`!=MVPtoprint4$`MVP_NB`)]<-0
+  MVPtot[line,]<-MVPtoprint4
+  line=line+1
+}
+
+MVPtot<-MVPtot[order(MVPtot$Annee,decreasing = TRUE),]
+MVPtot<-plyr::rename(MVPtot,c("MVP.predit"="MVP RF",
+                              "Annee"="Annee","MVP.reel"="MVP reel","MVP_knn"="MVP knn","MVP_LDA"="MVP LDA","MVP_NB"="MVP NB"
+))
+
+
+#AJOUTS
+rankings2<-rename(rankings2,
+                  c("team_name"="team_name",
+                    "General"="mean_O",
+                    "Domicile"="mean_H",
+                    "Deplacement"="mean_R"
+                  ))
+rankings3<-rename(rankings3,
+                  c("team_name"="team_name",
+                    "Year"="Year",
+                    "General"="mean_O",
+                    "Domicile"="mean_H",
+                    "Deplacement"="mean_R"
+                  ))
+
+#Ajouts dans la boucle predictions
+#Ajouts equipe championne
+
+rankings <- data.frame()
+for (i in seq(1977,2019)){
+  ranking<- read.csv(paste(paste("nba-models-master/season-standings/",i,sep=""),".csv",sep=""))
+  if (i<1999){
+    ranking<-ranking[,1:15]
+    ranking<-ranking[,-c(8,9,10,11,12,13)]
+  }
+  else if (i==1999){
+    ranking<-ranking[,1:13]
+    ranking<-ranking[,-c(8,9,10,11)]
+  }
+  else if(i<2005){
+    ranking<-ranking[,1:15]
+    ranking<-ranking[,-c(8,9,10,11,12,13)]
+  }
+  else if(i>=2005){
+    ranking<-ranking[,1:17]
+    ranking<-ranking[,-c(8,9,10,11,12,13,14,15)]
+  }
+  ranking$Year<-i
+  rankings<-rbind(rankings,ranking)
+}
+
+for (i in seq(1,nrow(rankings))){
+  rankings$Overall[i]<-as.numeric(str_split(rankings$Overall[i], "-")[[1]][1])/(as.numeric(str_split(rankings$Overall[i], "-")[[1]][2])+as.numeric(str_split(rankings$Overall[i], "-")[[1]][1]))
+  
+  rankings$Home[i]<-as.numeric(str_split(rankings$Home[i], "-")[[1]][1])/(as.numeric(str_split(rankings$Home[i], "-")[[1]][2])+as.numeric(str_split(rankings$Home[i], "-")[[1]][1]))
+  
+  
+  rankings$Road[i]<-as.numeric(str_split(rankings$Road[i], "-")[[1]][1])/(as.numeric(str_split(rankings$Road[i], "-")[[1]][2])+as.numeric(str_split(rankings$Road[i], "-")[[1]][1]))
+  
+  
+  rankings$X3[i]<-as.numeric(str_split(rankings$X3[i], "-")[[1]][1])/(as.numeric(str_split(rankings$X3[i], "-")[[1]][2])+as.numeric(str_split(rankings$X3[i], "-")[[1]][1]))
+  
+  
+  rankings$X10[i]<-as.numeric(str_split(rankings$X10[i], "-")[[1]][1])/(as.numeric(str_split(rankings$X10[i], "-")[[1]][2])+as.numeric(str_split(rankings$X10[i], "-")[[1]][1]))
+  
+  
+  rankings$E[i]<-as.numeric(str_split(rankings$E[i], "-")[[1]][1])/(as.numeric(str_split(rankings$E[i], "-")[[1]][2])+as.numeric(str_split(rankings$E[i], "-")[[1]][1]))
+  
+  
+  rankings$W[i]<-as.numeric(str_split(rankings$W[i], "-")[[1]][1])/(as.numeric(str_split(rankings$W[i], "-")[[1]][2])+as.numeric(str_split(rankings$W[i], "-")[[1]][1]))
+}
+
+champions <- read_excel("NBA Finals and MVP.xlsx")
+champions<-champions[,c(1,5)]
+rankings<-merge(rankings,champions,by.x=c("Year"),by.y=c("Year"))
+rankings$Champ<-0
+
+for (i in seq(1,nrow(rankings))){
+  if(rankings$Team[i]==rankings$`NBA Champion`[i]){
+    rankings$Champ[i]<-1
+  }
+}
+
+Champtot <- data.frame("Champion reel"=character(),
+                     "Annee"=character(), 
+                     "Champion predit"=character(),
+                     "Same"=character()) 
+
+line=1
+#Predictions Champion
+rankings<-rankings[which(rankings$Year>1980),]
+for(i in unique(rankings$Year)){
+  indice<-which(rankings$Year!=i)
+  X<-rankings[,-c(11,12)]
+  Y<-rankings[,12]
+  Xtrain<-X[indice,]
+  Xtest<-X[-indice,]
+  Ytrain<-Y[indice]
+  Ytest<-Y[-indice]
+  #Prediction
+  rf<-randomForest(x=Xtrain,y=as.factor(Ytrain))
+  pred<-predict(rf,Xtest,type="prob")
+  champtest<-cbind(Xtest,pred)
+  year<-unique(champtest$Year)
+  ind<-c()
+  index=0
+  for (i in year){
+    indyear<-which(champtest$Year==i)
+    ind<-cbind(ind,index+which.max(champtest$"1"[indyear]))
+    index=index+length(indyear)
+  }
+  #### VRAi champ ####
+  Champtrue<-rankings[which(rankings$Year==i & rankings$Champ==1),c(1,3)]
+  Champtrue
+  Champtoprint<-merge(Champtrue,champtest[ind,c(1,3)],by.x="Year",by.y="Year")
+  Champtoprint
+  Champtoprint$Same<-as.numeric(Champtoprint$Year)
+  Champtoprint
+  Champtoprint$Same[which(Champtoprint$`Team.x`==Champtoprint$`Team.y`)]<-1
+  Champtoprint$Same[which(Champtoprint$`Team.x`!=Champtoprint$`Team.y`)]<-0
+  Champtot[line,]<-Champtoprint
+  line<-line+1
+}
+Champtot<-Champtot[,c("Annee","Champion.reel","Champion.predit","Same")]
+Champtot<-plyr::rename(Champtot,c("Annee"="Champion reel","Champion.reel"="Annee","Champion.predit"="Champion predit","Same"="Same"))
+Champtot<-Champtot[order(Champtot$Annee,decreasing = TRUE),]
+
+
+#Ajouts stats age
+#Stats age
+season_stats_age<-season_statsMVP[which(season_statsMVP$Age<41),]
+t_age_2<-aggregate(. ~ Age,season_stats_age[,c(12,13,14,24,25,23,42,46)],FUN=quantile,probs=0.1)
+t_age_2<-plyr::rename(t_age_2,c("Age"="Age","pts"="Points","reb"="Rebonds","ast"="Passes","G"="Matches","MP"="Minutes","WS/48"="Impact Victoire","BPM"="Note du joueur"))
+t_age_2<-as.data.frame(t_age_2)
+t_age_3<-aggregate(. ~ Age,season_stats_age[,c(12,13,14,24,25,23,42,46)],FUN=quantile,probs=0.25)
+t_age_3<-plyr::rename(t_age_3,c("Age"="Age","pts"="Points","reb"="Rebonds","ast"="Passes","G"="Matches","MP"="Minutes","WS/48"="Impact Victoire","BPM"="Note du joueur"))
+t_age_3<-as.data.frame(t_age_3)
+t_age_4<-aggregate(. ~ Age,season_stats_age[,c(12,13,14,24,25,23,42,46)],FUN=quantile,probs=0.75)
+t_age_4<-plyr::rename(t_age_4,c("Age"="Age","pts"="Points","reb"="Rebonds","ast"="Passes","G"="Matches","MP"="Minutes","WS/48"="Impact Victoire","BPM"="Note du joueur"))
+t_age_4<-as.data.frame(t_age_4)
+t_age_5<-aggregate(. ~ Age,season_stats_age[,c(12,13,14,24,25,23,42,46)],FUN=quantile,probs=0.9)
+t_age_5<-plyr::rename(t_age_5,c("Age"="Age","pts"="Points","reb"="Rebonds","ast"="Passes","G"="Matches","MP"="Minutes","WS/48"="Impact Victoire","BPM"="Note du joueur"))
+t_age_5<-as.data.frame(t_age_5)
+```
+
+
+
+# Introduction
+
+<p style="text-align:justify;">Dans ce projet, on s'intéresse à différents jeux de données en rapport avec la NBA (National Basketball Association). Nous souhaitons couvrir un large spectre de données afin de pouvoir étudier joueurs et équipes sous différents angles. Nous souhaitons créer ainsi un outil de visualisation permettant d'observer un grand nombre de statistiques liées aux joueurs et aux équipes, les salaires, les masses salariales des équipes, la provenance des joueurs en terme de pays d'origine, l'impact de l'âge sur les joueurs, l'évolution du basket et bien d'autres aspects avec l'évolution de ces derniers dans le temps.</p>
+</br>
+
+<p style="text-align:justify;">Nous souhaitons ensuite fournir un outil de prédiction permettant d'estimer à l'aide de différentes méthodes les joueurs qui hériteront du titre de meilleur joueur de l'année ainsi que de l'équipe championne. Ne disposant pas des données des 2 dernières années nous étudieront ce que l'on peut obtenir en matière de prédictions jusqu'en 2018. Nous réaliserons en parallèle des analyses afin de comprendre et d'exploiter tout ce qui a été décrit précédemment afin de mettre en évidence des similarités et différences entre équipes et joueurs.</p>
+</br>
+
+<p style="text-align:justify;">Afin de montrer tout cela de la manière la plus précise et parlante possible nous avons donc décidé de réaliser une application shiny qui agit comme un outil de visualisation permettant d'observer tout cela ( https://guerinclement.shinyapps.io/NBA-GUERIN-LABORDE/ ). De nombreux paramétrages sont possibles permettant de réaliser des zooms sur des joueurs ou des équipes spécifiques. Dans le cadre de ce rapport nous ne pourrons bien sur pas couvrir l'ensemble des possibilités de paramétrisation mais nous décrirons de manière globale l'ensemble de ce que l'application permet avec un zoom spécifique sur certains éléments afin d'illustrer le tout.</p>
+
+
+# Présentation des bases de données
+
+<p style="text-align:justify;">Dans le cadre de cette étude nous disposons de nombreuses bases de données afin de pouvoir produire l'étude la plus complète et diversifiée possible. Nous allons les détailler en ne mentionnant que les variables des jeux de données qui servent à notre étude. Un lien s'affiche à coté du nom de chacun des jeux de données afin de pouvoir les retrouver et les télécharger.</p>
+</br>
+
+<ul class="roman">
+ <li><p style="text-align:justify;">"NBA_Salary_History" et "NBA_Salary_History_Players" [(dataworld stat Salary)](https://data.world/georgishopov/3rd-eye-visuals/workspace/file?agentid=makeovermonday&datasetid=2018w29-historical-nba-team-spending-against-the-cap&filename=NBA_Salary_History.xlsx) sont des jeux de données qui comme leurs noms l'indiquent contiennent toutes les données relatives aux salaires des joueurs en NBA ainsi qu'aux masses salariales des équipes. Le premier est composé de 816 lignes et le second de 13297 lignes. Les variables sont les suivantes :</p>
+ </br>
+ <ul class="square">
+  <li>"Season" indique la saison concernée</li>
+  <li>"Team" indique l'équipe concernée</li>
+  <li>"Player" indique le joueur concerné</li>
+  <li>"Salary" indique le salaire du joueur</li>
+  <li>"Salary Cap" indique la masse salariale maximale qu'une équipe peut avoir sans écoper de pénalités</li>
+  <li>"Total Salary" indique la masse salariale réelle de l'équipe</li>
+ </ul>
+ </li>
+  </br>
+  </br>
+ <li><p style="text-align:justify;">"NBA Finals and MVP" [(dataworld nba finals and mvps)](https://data.world/datatouille/nba-finals-and-mvps) est un jeu de données qui contient des informations sur les équipes championnes et sur le MVP (Meilleur joueur d'une saison). Il y a 69 lignes pour 69 saisons. Les variables sont les suivantes :</p>
+ </br>
+ <ul class="square">
+  <li>"Year" indique la saison</li>
+  <li><p style="text-align:justify;">"Eastern Champion", "Western Champion", "NBA Champion", "NBA Vice-Champion" indique l'équipe championne de la conférence Est (respectivement : Conférence Ouest, Championne de NBA et Vice championne de NBA)</p></li>
+  <li>"MVP name" indique le nom du meilleur joueur de la saison</li>
+ </ul>
+ </li>
+ </br>
+ </br>
+ <li><p style="text-align:justify;">"all_seasons" [(kaggle nba players data)](https://www.kaggle.com/justinas/nba-players-data) est un jeu de données qui contient les informations statistiques sur tous les joueurs ayant participé aux différentes saisons NBA depuis 1996-1997. Il y a 11145 entrées et les variables sont les suivantes :</p>
+ </br>
+ <ul class="square">
+  <li>"Player_name" indique le nom du joueur</li>
+  <li>"team_abbreviation" indique l'équipe pour laquelle le joueur joue</li>
+  <li>"Season" représente la saison</li>
+  <li><p style="text-align:justify;">Ensuite plus de 18 informations sont disponibles sur le joueur (son âge, sa taille, son poids, l'université pour laquelle il a joué, son pays d'origine, l'année de son entrée en NBA, l'ordre dans lequel il a été choisi ainsi que toutes ses statistiques pures pour la saison. Il s'agit des moyennes par matches de points marqués, de rebonds pris de passes décisives, etc...</p></li>
+ </ul>
+ </li>
+ </br>
+ </br>
+ <li><p style="text-align:justify;">"season-stats-advanced" [(github season-stats-advanced)](https://github.com/CaioBrighenti/nba-models/tree/master/season-stats-advanced) est un fichier dans lequel on peut trouver un jeu de données par saison depuis 1996-1997. Chacun contient les statistiques avancées de tous les joueurs. Il y a au total plus de 10000 lignes. "Season_Stats" [(kaggle season-stats)](https://www.kaggle.com/drgilermo/nba-players-stats) est un jeu de données venant rajouter encore des statistiques supplémentaires sur 25000 lignes. De nombreux champs des deux jeux de données sont en commun avec le jeu précédent mais les variables suivantes se rajoutent :</p>
+ </br>
+ <ul class="square">
+  <li><p style="text-align:justify;">Toutes les statistiques pures par matches des joueurs trouvent écho dans une variable représentant le pourcentage de réussite du joueur pour la statistique donnée. Par exemple la variable DRB% représente le pourcentage de rebonds défensifs que le joueur a pris pour son équipe en défense.</p></li>
+  <li><p style="text-align:justify;">Des informations sur le "WIN SHARE" (WS : Part des victoires de son équipe revenant au joueur) sont disponibles dont la plus représentative est la part de la victoire revenant au joueur par match (WS/48)</p></li>
+  <li><p style="text-align:justify;">Des informations concernant le BPM sont disponibles. Cette statistique est considérée comme la métrique la plus avancée et précise à ce jour à propos de la qualité d'un joueur. Elle sera détaillée lors de son utilisation.</p></li>
+ </ul>
+ </li>
+ </br>
+ </br>
+ <li><p style="text-align:justify;">"season-standings" [(github season-standings)](https://github.com/CaioBrighenti/nba-models/tree/master/season-standings) est un fichier dans lequel on peut trouver un jeu de données par saison depuis les années 1980 pour un total de 1170 lignes. Chacun contient les résultats et classements des équipes de NBA au cours des saisons. Les variables sont les suivantes :</p>
+ </br>
+ <ul class="square">
+  <li>"Year" représente la saison</li>
+  <li>"Rk" représente le classement de l'équipe lors d'une saison</li>
+  <li><p style="text-align:justify;">"Overall", "Home", "Road", "E", "W" représentent le nombre de victoires et de défaites de l'équipe au total (respectivement à domicile, en déplacement, contre les équipes de l'Est, contre les équipes de l'Ouest)</p></li>
+  <li>"Champion" indique l'équipe championne à une saison donnée</li>
+ </ul>
+ </li>
+ 
+</ul>
+
+
+# L'argent en NBA
+
+<p style="text-align:justify;">Dans un premier temps nous nous sommes intéressés à l'argent en NBA sous tous ses angles. Il est souvent admis que le "Salary Cap" (mesure qui consiste à plafonner la masse salariale de chaque équipe dans le but de garantir la compétitivité de chacune d'entre elles en empêchant un déséquilibre trop fort) a indirectement impliqué une inflation massive des salaires des joueurs ces dernières années. La NBA est désormais réputée comme étant la ligue de sport professionnelle proposant le meilleur salaire moyen au monde avec des écarts de salaires bien moins important qu'ailleurs (comme dans le football européen par exemple). Nous souhaitons affirmer ou infirmer cela.</p>
+</br>
+
+```{r, echo=FALSE, warning=FALSE}
+sal_m_play<-aggregate(. ~ Season,NBA_Salary_History_Players[,-c(2:3)] , mean)
+sal_m_play2<-aggregate(. ~ Season,NBA_Salary_History_Players[,-c(2:3)] , FUN=quantile,probs=0.1)
+sal_m_play3<-aggregate(. ~ Season,NBA_Salary_History_Players[,-c(2:3)] , FUN=quantile,probs=0.25)
+sal_m_play4<-aggregate(. ~ Season,NBA_Salary_History_Players[,-c(2:3)] , FUN=quantile,probs=0.75)
+sal_m_play5<-aggregate(. ~ Season,NBA_Salary_History_Players[,-c(2:3)] , FUN=quantile,probs=0.90)
+
+sal_m_play$Salary5<-round(sal_m_play2$Salary,0)
+sal_m_play$Salary25<-round(sal_m_play3$Salary,0)
+sal_m_play$Salary75<-round(sal_m_play4$Salary,0)
+sal_m_play$Salary95<-round(sal_m_play5$Salary,0)
+
+colors <- c("Salaire moyen" = "red", "Quantile d'ordre 0.10" = "lightblue", "Quantile d'ordre 0.25" = "blue", "Quantile d'ordre 0.75" = "blue", "Quantile d'ordre 0.90" = "lightblue")
+
+d2<-ggplot(data=sal_m_play,aes(x=Season,group=1))+
+  geom_line(aes(y=Salary/10**6,color="Salaire moyen"))+
+  geom_line(aes(y=Salary5/10**6,color="Quantile d'ordre 0.10"),linetype="dashed")+
+  geom_line(aes(y=Salary25/10**6,color="Quantile d'ordre 0.25"),linetype="dashed")+
+  geom_line(aes(y=Salary75/10**6,color="Quantile d'ordre 0.75"),linetype="dashed")+
+  geom_line(aes(y=Salary95/10**6,color="Quantile d'ordre 0.90"),linetype="dashed")+
+  xlab("Saison")+
+  ylab("Salaire en millions de dollars")+
+  ggtitle("Evolution du salaire en millions de dollars")+
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))+
+  #labs(color = "Légende")+
+  scale_color_manual(values = colors)
+
+ggplotly(d2)
+sal_m_play<-sal_m_play$Salary/10**6
+```
+
+</br>
+<p style="text-align:justify;">Cette visualisation représente l'évolution du salaire moyen en NBA au cours des années avec différents quantiles afin de mieux comprendre l'évolution des salaires de manière générale. De 800 000 dollars en moyenne à la saison 1990-1991 jusqu'à 5,7 millions à la saison 2017-2018, l'augmentation est impressionnante. Cependant, bien que le salaire moyen connaisse une augmentation claire au cours du temps, l'augmentation semble assez hétérogène, centrée principalement sur les plus hauts salaires. Ainsi les contrats des 10% des joueurs les moins bien payés ont même légèrement diminué depuis 1990. Il est sans doute intéressant de considérer cette série sous la forme d'une série chronologique afin de pouvoir mettre en évidence si oui ou non il existe une tendance et effectuer une prédiction par la suite sur les salaires futurs dans la ligue. Dans un premier temps, effectuons le test KPSS permettant de déterminer ou non la stationnarité de la série.</p>
+</br>
+
+```{r, echo=FALSE,warning=FALSE}
+#package(tseries)
+#kpss.test(time_ser, null = c( "Trend"), lshort = TRUE)
+time_ser=ts(sal_m_play,frequency=1,start=c(1991))
+kpss.test(diff(time_ser), null = c( "Trend"), lshort = TRUE)
+```
+
+</br>
+<p style="text-align:justify;">On observe ainsi que la p-valeur de la série différenciée est supérieure à 5% ce qui entraine que nous ne rejettons pas l'hypothèse nulle selon laquelle la série différenciée est stationnaire. Cette propriété est importante pour la suite car cela signifie que les propriétés de la série ne semblent pas varier dans le temps. On peut donc effectuer des prédictions en supposant que les propriétés resteront les mêmes dans le futur. Nous utiliserons la fonction "auto.arima" qui détecte automatiquement les paramètres de notre série chronologique.</p>
+</br>
+
+```{r,echo=FALSE,warning=FALSE}
+fit<-auto.arima(
+  time_ser,
+  stationary = FALSE,
+  seasonal = FALSE
+)
+plot(forecast(fit,h=12),ylab="Salaire moyen NBA (millions de dollars)",main="Prédictions du salaire moyen NBA ARIMA(0,1,0)")
+```
+
+</br>
+<p style="text-align:justify;">Nous pouvons observer que la série est ainsi un ARIMA (0,1,0). Ainsi l'ordre de différenciation dans le modèle est de 1 alors que l'ordre de la partie autorégressive et moyenne mobile sont de 0. Il s'agit donc en réalité d'une marche aléatoire où les incréments du salaire moyen en NBA chaque année seront des variables i.i.d. Ainsi on peut effectuer des prédictions pour le futur jusqu'en 2030. Nous observons ainsi que selon nos prédictions le salaire moyen va continuer d'augmenter fortement jusqu'à atteindre plus de 8 millions de dollars en 2030. La zone grise foncée représente l'intervalle de confiance de cette projection à 80% et en gris clair on trouve l'intervalle de confiance à 95%.</p>
+</br>
+
+<p style="text-align:justify;">Les autres possibilitées de visualisation permises par notre application sont nombreuses. Il est possible d'étudier pour chaque équipe les joueurs qui ont été les mieux payés (en moyenne ainsi que pour une saison donnée). Il est aussi possible d'étudier pour une saison donnée les joueurs les mieux payés toutes équipes confondues. Pour finir une option permet directement de choisir un joueur et d'observer l'évolution de ses contrats en matière de salaires. Afin d'illustrer certaines de ces possibilitées, nous avons décidé d'étudier le cas d'un joueur emblématique de la NBA : Michael JORDAN.</p>
+</br>
+
+## Mise en avant sur Michael JORDAN et son équipe les Chicago BULLS
+
+<p style="text-align:justify;">Nous disposons des données depuis la saison 1990-1991 ainsi le début de la carrière de Michael JORDAN (1984) ne sera pas couvert.</p>
+</br>
+
+```{r ,echo=FALSE}
+#Michael JORDAN
+ind<-which(NBA_Salary_History_Players$Player=="Michael Jordan")
+sal_m_play<-NBA_Salary_History_Players[ind,]
+ggplot(data=sal_m_play, aes(x=Season, y=Salary/10**6,fill=Salary/10**6)) +geom_bar(stat="identity") + ylab("Salaire en millions de dollars") + xlab("Saison") + ggtitle(paste0("Evolution du salaire de : ","Michael Jordan"))+ coord_flip()
+```
+</br>
+<p style="text-align:justify;">On observe que deux saisons sont associées à des valeurs de salaires assez décorrélées des autres : 1996-1997 et 1997-1998. En effet il s'agit des premières saisons complètes pour le retour de Michael JORDAN après une première retraite sportive pour s'adonner au baseball entre 1993 et 1995. Il continue tout de même de toucher de l'argent provenant de son précédent contrat sur cette période. Cependant à partir de la saison 1996-1997 son équipe, les Chicago BULLS ont acceptés de lui donner un salaire faramineux avant de le faire revenir dans le monde du basket. On observe ensuite un trou entre 1998 et 2001 correspondant à une seconde retraite sportive. Michael JORDAN ne revenant pas à un niveau satisfaisant le salaire qui lui est proposé est moindre que précédemment. Notre outil permet de visualiser l'impact que le salaire de Michael JORDAN a eu sur son équipe :</p>
+</br>
+
+```{r ,echo=FALSE}
+#Chicago Bulls
+ind<-which(NBA_Salary_History$Team=="Chicago Bulls")
+sal_m2<-NBA_Salary_History[ind,]
+ggplot(data=sal_m2, aes(x=Season, y=`Total Salary`/10**6,fill=`Total Salary`/10**6)) +geom_bar(stat="identity") + ylab("Somme des salaires de l'équipe") + xlab("Saison") + ggtitle("Evolution masse salariale Chicago Bulls")+coord_flip()
+```
+
+</br>
+<p style="text-align:justify;">On observe que les saisons 1996-97 et 1997-98 qui correspondaient à un salaire conséquent pour Michael JORDAN trouvent écho dans la masse salariale des BULLS lors de ces mêmes saisons où le joueur représentait à lui seul plus de la moitié des salaires de son équipe. Ces deux années semblent assez exceptionnelles pour l'équipe par rapport à la tendance de fond et à l'époque.</p>
+</br>
+
+<p style="text-align:justify;">Un zoom similaire peut être réalisé pour tous les autres joueurs et toutes les autres équipes.</p>
+</br>
+
+# L'évolution du Basket
+
+<p style="text-align:justify;">Par la suite on s'intéresse à la manière dont le basket a évolué depuis les années 1950 afin de devenir ce qu'il est aujourd'hui. Afin de comprendre son évolution nous trouvons qu'il convient d'étudier différentes statistiques (telles que les Points marqués, les minutes jouées, la note des différents joueurs et bien d'autres métriques) en fonction du poste des joueurs. En effet, le basket est un sport qui se joue avec 5 joueurs occupant des postes différents simultanément sur le terrain :</p>
+
+- Meneur et Arrière (PG et SG, généralement plus petits que les autres joueurs et plus rapides, ils tirent souvent depuis la ligne à trois points). Les meneurs ont de plus un rôle de distribution de ballons.
+
+- Ailier (SF, généralement un joueur très équilibré).
+
+- Ailier fort et Pivot (PF et C, généralement plus grands que les autres joueurs, ils sont souvent des joueurs meilleurs en défense que les autres).
+
+<p style="text-align:justify;">Chaque poste a un intérêt précis et il est souvent admis qu'historiquement dans les années 50, 60 et 70 les pivots étaient les joueurs les plus importants d'une équipe. Nous souhaitons donc étudier si cela peut être mis en avant et observer l'état du jeu actuel. Il convient de noter que notre application permet d'observer l'ensemble de ces statistiques en prenant en compte tous les joueurs ou en prenant en compte seulement les 5 majeurs de chaque équipe (les joueurs principaux de l'effectif et non les remplaçants) qui sont les principaux artisans des résultats des différentes équipes. Dans le cadre de ce rapport nous activerons donc l'option pour prendre en compte seulement les joueurs des 5 majeurs. La première statistique intéressante pour étudier l'évolution du jeu est celle des points marqués :</p>
+</br>
+
+```{r,echo=FALSE}
+pts_par_poste<-ggplot(data=season_stats4,aes(x=Year,y=(Points/Matches),colour=Pos,group=Pos))+geom_line()+xlab("Saison")+ylab(paste0("Moyenne de ", "Points"))+ggtitle(paste0(paste0("Moyenne de ", "Points"),  " par matches par poste"))
+ggplotly(pts_par_poste)
+```
+
+</br>
+<p style="text-align:justify;">On observe dans un premier temps que depuis le début des années 50 jusqu'au milieu des années 60 les pivots étaient malgré leur rôle à vocation relativement défensive les meilleurs marqueurs de la ligue. Cette importance s'est grandement atténuée au cours du temps pour revenir dans la moyenne des autres postes à partir des années 1970. Cependant on n'observe pas réellement ce à quoi on s'attendait en matière d'importance de ce poste. En revanche on observe une explosion récente en matière de points marqués pour les meneurs. Cela correspond avec le fait que depuis les années 2010 le jeu s'oriente de plus en plus vers la ligne à 3 points, zone ou se situe principalement les meneurs. Depuis cette période quelques joueurs (meneurs) présentant des statistiques exceptionnelles en matière de tir à 3 points ont fait leur apparition dans la ligue, cependant il est difficile de conclure s'ils sont la cause ou la conséquence de ce changement du jeu.</p>
+</br>
+<p style="text-align:justify;">Une seconde statistique intéressante pour étudier l'évolution du jeu et de l'impact des différents postes est le temps joué par matches.</p>
+</br>
+
+```{r,echo=FALSE}
+mns_par_poste<-ggplot(data=season_stats4,aes(x=Year,y=(Minutes/Matches),colour=Pos,group=Pos))+geom_line()+xlab("Saison")+ylab(paste0("Moyenne de ", "Minutes"))+ggtitle(paste0(paste0("Moyenne de ", "Minutes"),  " par matches par poste"))
+ggplotly(mns_par_poste)
+```
+
+</br>
+<p style="text-align:justify;">A l'aide de cette nouvelle statistique, on observe de nouveau que les pivots étaient des joueurs absolument centraux dans un effectif dans les années 1960 avant que cela s'atténue par la suite. Dans les années récentes la tendance s'est même inversée, confirmant le fait que le basket se centralise plus autour de la ligne à trois points désormais. Nous souhaitons donc nous attarder pour finir sur une dernière statistique. Il s'agit d'un indicateur mis au point récemment s'intitulant le BPM (Box Plus-Minus). La formule selon laquelle cette statistique extrêmement complexe est calculée prend en compte le poste, l'ensemble des statistiques, le temps de jeu et bien d'autres données sur chaque joueur. Le détail des coefficients appliqués à chaque statistique peut se trouver sur cette page web :</p>
+
+https://www.basketball-reference.com/about/bpm2.html
+</br>
+
+<p style="text-align:justify;">Il s'agit aujourd'hui de la statistique unanimement considérée par les experts comme la plus à même de traduire la qualité d'un joueur sur une saison donnée. Une note de 0.0 correspond à un joueur moyen dans la ligue, les notes négatives sont possibles. Une note de 2 correspond à un bon joueur, 4 à un excellent joueur (top 30 dans la ligue environ), 6 à un joueur du top 5 de la ligue pour une saison donnée. Des notes encore plus hautes peuvent ressortir. Cette statistique récente a donc été calculée de manière rétrospective depuis la saison 1973-1974, première saison à partir de laquelle l'ensemble des statistiques nécessaires sont disponibles.</p>
+</br>
+
+```{r,echo=FALSE}
+bpm_par_poste<-ggplot(data=season_stats4,aes(x=Year,y=(BPM),colour=Pos,group=Pos))+geom_line()+xlab("Saison")+ylab(paste0("Moyenne de ", "BPM"))+ggtitle(paste0(paste0("Moyenne de ", "BPM"),  " par poste"))
+ggplotly(bpm_par_poste)
+```
+
+</br>
+<p style="text-align:justify;">Cette fois-ci cette statistique traduisant l'importance générale d'un joueur montre que les pivots ont été les éléments les plus importants d'une équipe jusqu'en 1980. Cependant les données étant manquantes avant 1973, il est difficile de conclure qu'il s'agit indiscutablement du poste majeur des années 50, 60 et 70 bien qu'il semble en effet avoir de solides arguments pour clamer ce titre. Finalement, en accord avec ce que l'on a pu dire plus tôt on observe une explosion de l'importance des meneurs selon la mesure BPM ajoutant un argument sur le basculement du basket moderne vers la ligne à 3 points.</p>
+
+
+# Origine des joueurs
+
+<p style="text-align:justify;">On s'intéresse désormais aux pays d'origine des différents joueurs de la NBA. Encore une fois de nombreux observateurs considèrent que la NBA s'ouvre de plus en plus aux joueurs étrangers. Là où avant les années 2000, un joueur non américain dans la NBA constituait une exception, il s'agit d'une chose de plus en plus courante désormais. Nous avons choisi deux visualisations pour illustrer ce changement. Dans un premier temps, nous étudions l'évolution en matière de pourcentage du nombre de joueurs non américains dans la ligue :</p>
+
+```{r,echo=FALSE,warning=FALSE}
+country_prop<-prop.table(table(season_stats_country2$Year,season_stats_country2$country),1)
+country_prop<-as.data.frame(country_prop)
+country_prop<-rename(country_prop,
+    c("Annee"="Var1",
+      "Pays"="Var2",
+      "Prop"="Freq"
+      )
+  )
+pays<-ggplot(data=country_prop,aes(x=Annee,y=Prop,color=Pays,group=Pays))+geom_line(stat="identity")+xlab("Saison")+ylab("Proportion de joueurs")+ggtitle("Evolution de l'origine des joueurs en NBA")+scale_y_continuous(labels = scales::percent)+theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+ggplotly(pays)
+```
+</br>
+<p style="text-align:justify;">On observe que le pourcentage de joueurs étrangers en NBA a effectivement augmenté au cours du temps pour s'établir à plus de 20% en 2018. On peut de nouveau essayer de prédire les valeurs futures de la proportion de joueurs étrangers en NBA :</p>
+
+```{r,echo=FALSE,warning=FALSE}
+country_prop<-country_prop[which(country_prop$Pays=="Other"),c(3)]
+time_ser=ts(country_prop,frequency=1,start=c(1997))
+```
+
+```{r,echo=FALSE,warning=FALSE}
+#package forecast
+#library(forecast)
+fit<-auto.arima(
+  time_ser,
+  stationary = FALSE,
+  seasonal = FALSE
+)
+plot(forecast(fit,h=12),ylab="proportion de joueurs non américain en NBA",main="Prédiction joueurs étrangers en NBA ARIMA(0,1,0)")
+#df<-forecast(fit,h=12)
+#c2<-c()
+#for (i in seq(0,10)){
+#  c2<-c(c2,df$mean[i+1]-df$mean[i])
+#}
+#c2
+#df
+```
+
+</br>
+<p style="text-align:justify;">On obtient ainsi que le modèle utilisé pour prédire les valeurs est cette fois encore un ARIMA (0,1,0). Ainsi l'ordre de différenciation dans le modèle est de 1 alors que l'ordre de la partie autorégressive et moyenne mobile sont de 0. Il s'agit donc en réalité d'une marche aléatoire où l'incrément de la proportion de joueur étranger chaque année seront des variables i.i.d. Ainsi la projection à l'horizon 2030 de la proportion de joueur étranger en NBA est de 32%. La zone grise foncée représente l'intervalle de confiance de cette projection à 80% et en gris clair on trouve l'intervalle de confiance à 95%.</p>
+
+
+# L'impact de l'âge en NBA
+
+<p style="text-align:justify;">Pour finir nos études sur différentes statistiques de la NBA nous nous sommes intéressés à l'impact de l'âge sur les performances des joueurs afin de mettre en évidence : l'âge à partir du quel les joueurs peuvent réellement s'éveiller en NBA, le pic de forme et l'âge de déclin. Il est possible encore une fois de sélectionner de nombreuses statistiques pour visualiser l'évolution de cette donnée en fonction de l'âge des joueurs en NBA. Afin de ne pas surcharger la section nous avons décidé d'afficher seulement l'évolution de la statistique avancée BPM discutée précédemment et renommée à l'occasion "note du joueur" ainsi que l'évolution du nombre de minutes jouées en fonction de l'âge.</p>
+
+```{r,echo=FALSE,warning=FALSE}
+#ggplot(data=t,aes(x=Age,y=(t$`Note du joueur`)))+geom_line(stat="identity")+
+#xlab("Age")+
+#ylab(paste0("Note du joueur",""))+
+#ggtitle(paste0("Note du joueur"," en fonction de l'age"))+
+#scale_x_continuous(breaks=seq(18,40,1))+
+#geom_point()
+
+colors <- c("Moyenne" = "red", "Quantile d'ordre 0.10" = "lightblue", "Quantile d'ordre 0.25" = "blue", "Quantile d'ordre 0.75" = "blue", "Quantile d'ordre 0.90" = "lightblue")
+        ggplot(NULL)+
+            geom_line(data=t,aes(x=Age,y=(t$`Note du joueur`),color="Moyenne"))+
+            geom_line(data=t_age_2,aes(x=Age,y=(t_age_2$`Note du joueur`),color="Quantile d'ordre 0.10"),linetype="dashed")+
+            geom_line(data=t_age_3,aes(x=Age,y=(t_age_3$`Note du joueur`),color="Quantile d'ordre 0.25"),linetype="dashed")+
+            geom_line(data=t_age_4,aes(x=Age,y=(t_age_4$`Note du joueur`),color="Quantile d'ordre 0.75"),linetype="dashed")+
+            geom_line(data=t_age_5,aes(x=Age,y=(t_age_5$`Note du joueur`),color="Quantile d'ordre 0.90"),linetype="dashed")+
+            xlab("Age")+
+            ylab(paste0("Note du joueur",""))+
+            ggtitle(paste0("Note du joueur"," en fonction de l'age"))+
+            scale_color_manual(values = colors)
+```
+
+</br>
+<p style="text-align:justify;">Avant de proposer une analyse de ce graphe il convient de noter un point extrêmement important : la NBA n'est pas une ligue fermée mais il est peu fréquent d'y rentrer à un âge avancé ! Ainsi pour la plupart, les joueurs à l'âge n+1 sont des joueurs qui se trouvaient déjà dans la ligue à l'âge n. Ce graphique est donc dans une certaine mesure aussi le reflet de l'évolution des joueurs.  Ainsi on observe que l'arrivée dans la ligue des nouveaux joueurs (pour la plupart entre 18 et 20 ans) est synonyme d'apprentissage pour eux. En effet ceux-ci n'ont en moyenne pas le niveau de jeu de leurs ainés mais s'améliorent rapidement pour atteindre un plateau de 21 à 25 ans. S'ensuit une amélioration de leur niveau de jeu vers un nouveau plateau dans ce que de nombreux observateurs appellent la force de l'âge au basket (la période 25-35 ans). On observe ensuite une baisse du niveau moyen de jeu jusqu'aux 40 ans du joueur. Cependant il convient de prendre en compte une nuance : cette baisse de niveau ne semble pas être de la même intensité pour tous les joueurs. Les meilleurs connaissent une baisse de niveau assez faible alors que pour les moins bons la baisse est plus prononcée. Etudions désormais l'évolution du temps de jeu.</p>
+</br>
+
+```{r,echo=FALSE,warning=FALSE}
+colors <- c("Moyenne" = "red", "Quantile d'ordre 0.10" = "lightblue", "Quantile d'ordre 0.25" = "blue", "Quantile d'ordre 0.75" = "blue", "Quantile d'ordre 0.90" = "lightblue")
+        ggplot(NULL)+
+            geom_line(data=t,aes(x=Age,y=(t$`Minutes`),color="Moyenne"))+
+            geom_line(data=t_age_2,aes(x=Age,y=(t_age_2$`Minutes`),color="Quantile d'ordre 0.10"),linetype="dashed")+
+            geom_line(data=t_age_3,aes(x=Age,y=(t_age_3$`Minutes`),color="Quantile d'ordre 0.25"),linetype="dashed")+
+            geom_line(data=t_age_4,aes(x=Age,y=(t_age_4$`Minutes`),color="Quantile d'ordre 0.75"),linetype="dashed")+
+            geom_line(data=t_age_5,aes(x=Age,y=(t_age_5$`Minutes`),color="Quantile d'ordre 0.90"),linetype="dashed")+
+            xlab("Age")+
+            ylab(paste0("Minutes",""))+
+            ggtitle(paste0("Minutes jouées"," en fonction de l'age"))+
+            scale_color_manual(values = colors)
+```
+</br>
+<p style="text-align:justify;">Désormais nous observons l'évolution du temps de jeu des joueurs en fonction de leur âge. On peut voir que le temps de jeu augmente drastiquement lors des premières années de présence dans la ligue entre 18 et 20 ans. L'évolution des courbes est assez similaire à ce que l'on a pu observer précédemment mais bien plus prononcée. Ainsi bien que l'augmentation du temps de jeu soit extrêmement significative pour la plupart des joueurs jusqu'à atteindre un plateau de 21 à 33 ans, la diminution du temps de jeu est elle aussi assez importante au-delà de cet âge. Les raisons possibles sont : l'augmentation du nombre de blessures ainsi que la diminution du niveau de jeu comme on l'a vu précédemment.</p>
+
+
+
+# Statistiques additionnelles
+
+<p style="text-align:justify;">Désormais nous allons présenter brièvement des statistiques additionnelles que permet de visualiser notre application.</p>
+
+## 1) Les records ##
+
+<p style="text-align:justify;">Notre application permet de visualiser les records détenus par les joueurs sur leur carrière selon différentes statistiques : les points marqués, le nombre de passes décisives effectuées, les interceptions réalisées, les matchs joués, les blocages effectués et pour finir les meilleures saisons réalisées dans l'histoire selon la statistique avancée BPM. Ci-dessous un exemple d'une de ces statistiques : les points marqués.</p>
+</br>
+
+```{r, echo=FALSE, warning=FALSE}
+pts<-season_stats7[order(-season_stats7$sum_PTS),]
+pts<-pts[1:10,]
+p<-ggplot(data=pts, aes(x=reorder(Player,sum_PTS), y=sum_PTS,label=sum_PTS)) +
+geom_bar(stat="identity") +
+#,fill = "red"
+geom_text(size = 5, position = position_stack(vjust = 0.5))+ ylab("Points Marqués") + xlab("Joueurs") + ggtitle("Classement des joueurs par Points marqués depuis 1950")
+p<-p + coord_flip()
+#ggplotly(p)
+```
+```{r , out.width='100%',fig.align = 'center',echo=FALSE}
+knitr::include_graphics(rep('records.png', 1))
+```
+</br>
+
+## 2) Un ensemble de statistiques sur tous les joueurs ##
+
+<p style="text-align:justify;">Nous mettons de plus à disposition un outil de visualisation de l'ensemble des statistiques et données majeures de l'ensemble des joueurs pour toutes les saisons. Nous recommandons de limiter la visualisation aux joueurs ayant joué plus d'un certain nombre de minutes lorsque l'on souhaite visualiser les statistiques comme les Points, les rebonds, les passes ou encore "impact victoire" et "note du joueur". En effet les premières peuvent ne pas être représentatives si le joueur a peu joué et les dernières ne sont robustes que lorsque les joueurs ont un temps de jeu minimum d'environ 50 minutes. Ci-dessous une pré-selection à l'année 2018 et aux joueurs ayant joué plus de 1500 minutes.</p>
+</br>
+
+```{r, echo=FALSE, warning=FALSE}
+ind<-which(stats_players$Annee==2018 & stats_players$Minutes>1500)
+#DT::datatable(stats_players[ind,])
+```
+```{r , out.width='100%',fig.align = 'center',echo=FALSE}
+knitr::include_graphics(rep('stats_player.png', 1))
+```
+</br>        
+
+## 3) Un élément important du basket : le BIG Five ##
+
+<p style="text-align:justify;">Un autre élément de visualisation apprécié des spécialistes du basket américain est la sélection d'un BIG Five selon une ligne statistique. Un BIG Five est une sélection du meilleur joueur à chaque poste selon une statistique. Ainsi si l'on souhaite disposer lors de l'année 2017 de la meilleure équipe en matière de points marqués la réponse doit être constituée du meilleur meneur, arrière, ailier, ailier fort et pivot en matière de points marqués. Voici la visualisation résultante de l'exemple décrit précédemment :</p>
+</br>
+
+```{r, echo=FALSE, warning=FALSE}
+ind_PG<-which(stats_players$Annee==2017 & stats_players$Minutes>1500 & stats_players$Poste=="PG")
+Points2<-stats_players[ind_PG,7]
+PG<-stats_players[ind_PG,]%>%
+filter(rank(desc(Points2), ties.method = "min") <= 1)
+ind_SG<-which(stats_players$Annee==2017 & stats_players$Minutes>1500 & stats_players$Poste=="SG")
+Points2<-stats_players[ind_SG,7]
+SG<-stats_players[ind_SG,]%>%
+filter(rank(desc(Points2), ties.method = "min") <= 1)
+ind_SF<-which(stats_players$Annee==2017 & stats_players$Minutes>1500 & stats_players$Poste=="SF")
+Points2<-stats_players[ind_SF,7]
+SF<-stats_players[ind_SF,]%>%
+filter(rank(desc(Points2), ties.method = "min") <= 1)
+ind_PF<-which(stats_players$Annee==2017 & stats_players$Minutes>1500 & stats_players$Poste=="PF")
+Points2<-stats_players[ind_PF,7]
+PF<-stats_players[ind_PF,]%>%
+filter(rank(desc(Points2), ties.method = "min") <= 1)
+ind_C<-which(stats_players$Annee==2017 & stats_players$Minutes>1500 & stats_players$Poste=="C")
+Points2<-stats_players[ind_C,7]
+C<-stats_players[ind_C,]%>%
+filter(rank(desc(Points2), ties.method = "min") <= 1)
+big<-rbind(rbind(rbind(rbind(PG,SG),SF),PF),C)
+index<-grep(7, colnames(big))
+index2<-c(1,2,3,4,7)
+big2<-big[,index2]
+#big2
+#DT::datatable(big2)
+```
+```{r, out.width='100%',fig.align = 'center',echo=FALSE}
+knitr::include_graphics(rep('big_five.png', 1))
+```
+</br>
+
+<p style="text-align:justify;">Il est possible de choisir de nombreuses autres statistiques : Rebonds, Passes, Minutes, Impact Victoire, Note du joueur. De plus il est possible de choisir toutes les années depuis 1997 et il est aussi possible choisir les meilleurs joueurs de tous les temps par poste selon toutes ces statistiques en ne choisissant pas d'année.</p>
+
+
+## 4) Les équipes ##
+
+<p style="text-align:justify;">Une dernière visualisation permet d'avoir rapidement une vue d'ensemble sur les forces et faiblesses des différentes équipes NBA au cours des différentes saisons mais aussi au cours de l'ensemble de leurs histoires. Ci-dessous nous avons affiché la saison 2015-2016 avec les victoires de manière générale. Cette année-là Golden state a survolé la saison régulière en battant le record de victoires de l'histoire de la NBA sur une saison. Cependant comme on l'observe dans les encarts en haut cette année-là c'est Cleveland, troisième au classement général qui remportera le titre contre toutes les attentes.</p>
+</br>
+
+```{r, out.width='100%',fig.align = 'center',echo=FALSE}
+knitr::include_graphics(rep('stats_team.png', 1))
+```
+</br>
+<p style="text-align:justify;">Il est aussi possible de sélectionner un affichage par victoire à domicile ou en déplacement. Nous allons désormais nous intéresser à de nouvelles prédictions que l'on peut faire sur la NBA. L'exemple choisi ci-dessus est un exemple de la difficulté que pourront rencontrer nos algorithmes pour prédire par exemple l'équipe championne d'une saison.</p>
+</br>
+
+
+# Prédictions du MVP
+
+<p style="text-align:justify;">A l'aide de toutes les données dont on dispose nous avons trouvé très intéressant de prédire à l'aide de différents algorithmes le joueur qui au vu de la saison réalisée sera élu meilleur joueur de la saison. Pour cela nous disposons d'un jeu de données composé de plus de 50 variables explicatives ainsi que d'une variable réponse que nous avons fabriqué "MVP" qui vaut 1 si le joueur a été élu meilleur joueur de la saison et 0 sinon. Le nombre de joueurs par saison étant supérieur à 500 on comprend ainsi que les données sont extrêmement déséquilibrées. En effet plus de 99,8% des données ont pour valeur 0 pour cette variable et moins de 0,2% ont pour valeur 1. Ainsi bon nombre d'algorithmes considéreront minimiser l'erreur en prédisant seulement des 0 mais cela n'a aucun intérêt dans le cadre de notre étude. Une des solutions possible à ce problème est alors de s'intéresser aux probabilités estimées par notre algorithme que la donnée soit un 1 et de les observer par ordre décroissant de valeurs. Ainsi afin de prédire le MVP d'une saison nous utilisons les méthodes des forêts aléatoires, la méthode knn, la méthode LDA et la méthode du bayésien naïf. Nous optimisons les paramètres de ces différentes méthodes lorsqu'il y en a. Afin d'utiliser knn, LDA et le bayésien naif les données ont été centrées et réduites car cela améliore grandement les résultats. Ainsi les résultats obtenus sont les suivants.</p>
+</br>
+
+```{r, out.width='100%',fig.align = 'center',echo=FALSE}
+knitr::include_graphics(rep('MVP.png', 1))
+```
+</br>
+
+<p style="text-align:justify;">Les cellules colorées en rouge correspondent à une erreur de l'algorithme et celles en vert correspondent à la bonne réponse. La première observation est que les méthodes LDA et du bayésien naïf ne trouvent jamais de manière correcte le MVP d'une saison. Avec un taux de réussite de 0% elles semblent totalement inefficaces, cependant il convient de se rappeler du déséquilibre très important sur nos données et de nuancer. Bien que ces méthodes aient un pourcentage de réussite de 0% une réflexion légèrement plus poussée amène à réfléchir sur les noms qui ressortent. En effet les prédictions réalisées à chaque saison sont très loin d'être mauvaise avec la sélection de très grands joueurs qui à chacune des saisons concernées étaient des joueurs ayant tout à fait leur chance d'être sacré parmi une dizaine. Prenons les exemples les plus récents. En 2018 James HARDEN est sacré MVP, la méthode LDA prédit le sacre et Jimmy BUTLER et la méthode du bayésien naïf de Paul GEORGE. Ces deux joueurs ont été élu dans le Top 15 des meilleurs joueurs de cette saison ! Ainsi ces deux algorithmes fournissent des résultats qui ne sont pas déconnectés de la réalité et ont appris mais pas suffisamment les caractéristiques qui font d'un joueur un MVP.</p>
+</br>
+
+<p style="text-align:justify;">La méthode knn a été optimisée et nous avons observé qu'une cinquantaine de voisins fournissaient les meilleurs résultats. Avec ces paramètres nous obtenons 11 prédictions correctes sur 22 ce qui traduit un taux de réussite de 50%. Ce résultat semble très convaincant et traduit une bonne capacité d'apprentissage du problème par l'algorithme. Ce qui est d'autant plus intéressant est d'observer les erreurs commises. En effet en s'attardant sur les trois erreurs les plus récentes en exemple : 2018, 2015 et 2013, on observe que le MVP prédit est tout simplement le second en termes de votes reçus cette saison-là. Des erreurs qui sont donc minimes car très proches de la réalité. Si on observe notre ordre des prédictions faites, on se rend compte que ces années-là, le réel MVP est prédit en seconde position ! Le constat s'étend de manière générale aux autres années. Ainsi la méthode knn correctement optimisée fournit de très bonnes prédictions.</p>
+</br>
+
+<p style="text-align:justify;">Pour finir la méthode des forêts aléatoires produit 13 prédictions correctes sur 22, pour un taux de réussite proche de 60% ! Le même constat que précédemment s'impose, les erreurs de prédiction sont généralement associées à la prédiction de joueurs qui ont occupé la deuxième ou troisième place du classement du MVP réel. Ainsi cette méthode semble la plus efficace.</p>
+</br>
+
+<p style="text-align:justify;">Cependant, nous observons que les erreurs de prédictions des deux méthodes efficaces que sont knn et forêts aléatoires se situent généralement aux mêmes années. On peut citer l'exemple de l'année 2011. Les deux méthodes prédisent le sacre de Lebron JAMES en tant que meilleur joueur cette saison alors que Derrick ROSE est sacré. Cette année-là Lebron James venait de quitter son équipe de toujours Cleveland pour rejoindre une équipe avec deux joueurs dits "all-star". La formation de "Super-équipes" comme elles sont appelées outre-Atlantique est vue de manière assez négative et les journalistes votant pour le sacre du MVP ont pour certains reconnu publiquement prendre cela en compte dans le vote d'un MVP. Ainsi bien que cette année-là Lebron JAMES possédait les meilleures statistiques de toute la ligue à presque tous les niveaux il n'a été élu que 3ème. Il est assez difficile de prendre le changement d'équipe et la perception de cette action en compte par un algorithme, on comprend ainsi la difficulté de prédictions pour certaines années. Un autre exemple serait la rivalité Karl MALONE et Michael JORDAN de 1997 et 1998. JORDAN affiche de meilleures statistiques en 1997 et pourtant MALONE est élu MVP ce qui ne manque pas de faire scandale dans une certaine mesure puis l'année suivante la situation inverse se produit, certains évoquant une compensation pour Michael JORDAN.</p>
+</br>
+
+<p style="text-align:justify;">Les méthodes se focalisant sur les statistiques pures, prédisent donc l'inverse de ce qui s'est passé ces années-là.</p>
+
+
+# Prédiction du champion
+
+<p style="text-align:justify;">Une autre prédiction pouvant s'avérer intéressante est celle de l'équipe sera couronnée championne à l'issue d'une saison. Une saison se déroule en deux temps : une saison régulière où les équipes s'affrontent afin d'avoir un classement qui déterminera si elles peuvent participer à la phase finale et une phase finale justement lors de laquelle ces équipes s'affrontent sur de courtes séries de matchs et progressent par système d'élimination. Ainsi nous recueillons des données sur les équipes à l'issue de la saison régulière et nous pouvons essayer de prédire celle qui gagnera la phase finale. De nouveau nous avons comparé plusieurs méthodes mais celle produisant les meilleurs résultats est la méthode des forêts aléatoires à laquelle nous nous intéresserons ici. Les variables explicatives dont nous disposons ou que nous créons sont : le pourcentage de victoires, le pourcentage de victoires à domicile, le pourcentage de victoires en déplacement, le pourcentage de victoires contre des équipes de la conférence Est et celle de l'Ouest, le X3, le X10 et le classement général. Nous disposons de plus d'une variable réponse prenant la valeur 1 si l'équipe est championne une saison donnée et 0 sinon. Encore une fois les données sont très déséquilibrées : une seule équipe championne pour 30 équipes chaque année. En procédant de manière similaire au problème précédent, on obtient les résultats suivants :</p>
+</br>
+
+```{r, echo=FALSE,out.width="75%", out.height="20%",fig.cap="caption",fig.show='hold',fig.align='center'}
+knitr::include_graphics(c('Cham1.png','Cham2.png'))
+``` 
+</br>
+<p style="text-align:justify;">Pour ce problème, la méthode des forêts aléatoires permet d'obtenir la prédiction correcte de 19 équipes championnes sur 38 soit un résultat d'exactement 50%. Encore une fois il est informatif de s'intéresser aux erreurs commises. Nous n'allons pas toutes les étudier mais s'intéresser aux deux plus récentes : 2018 et 2016. Ces deux erreurs sont assez différentes et représentent l'ensemble des cas de figure que l'on retrouve. En 2018 la méthode des forêts aléatoires prédit la victoire des Rockets de Houston qui termine premier de la conférence Ouest cette année-là, cependant en demi-finale ils perdent de peu (4-3) contre le futur vainqueur du championnat. En 2016, alors que la méthode prédit la victoire des Golden state Warriors, c'est Cleveland qui est sacré à la surprise générale en finale contre cette équipe. En effet la surprise est assez grande car l'équipe de golden state vient de réaliser la meilleure saison régulière de l'histoire avec des records de victoires dans toutes les catégories. Ainsi on peut comprendre la difficulté pour la méthode de prédire Cleveland en tant que réel vainqueur cette année-là. De manière générale l'algorithme ne pouvant se baser sur autre chose que la saison régulière pour prédire la phase finale il est assez difficile pour lui de prédire qu'une équipe ayant performé exceptionnellement bien lors de la saison régulière ne gagnera pas et vice-versa. De manière générale lorsque l'algorithme commet une erreur, sa deuxième ou troisième option s'avère être le réel champion.</p>
+
+
+# Liens entre joueurs et équipes
+
+<p style="text-align:justify;">Pour finir nous avons souhaité mettre en évidence des liens entre joueurs et entre équipes. Dans un premier temps nous allons étudier les liens que peuvent lier ou différencier des joueurs. Pour cela en se servant de l'ensemble des statistiques disponibles pour les joueurs, nous avons construit des clusters qui sont au nombre de 4. Notre outil de visualisation permet de choisir une saison afin d'observer les similarités et différences pour une année donnée. Dans le cadre de ce rapport nous avons choisi d'illustrer les clusters de joueurs lors de l'année 2010 en fonction de leurs statistiques.</p>
+</br>
+
+```{r, out.width='100%',fig.align = 'center',echo=FALSE}
+knitr::include_graphics(rep('clust_play2.png', 1))
+```
+</br>
+<p style="text-align:justify;">Etant donné que le jeu de données est composé d'un grand nombre de variables il peut être difficile de lire le résultat, nous l'avons donc mis sous forme d'image afin de pouvoir l'afficher plus grand. Heureusement un point facilite la lisibilité : Pour l'ensemble des statistiques présente, plus un joueur possède des valeurs élevées dans ces statistiques plus le joueur sera bon dans cette statistique. Ainsi pour être un bon joueur il faut avoir des statistiques plus élevées que la moyenne dans plusieurs catégories différentes. Le résultat se lit de la manière suivante : pour un cluster donné une barre rouge implique que les joueurs de ce cluster ont des valeurs plus élevées que la moyenne pour la statistique concernée alors qu'une barre bleue indique l'inverse. La taille de la barre indique la force de cette liaison. On peut donc réaliser l'interprétation suivante :</p>
+
+- Le cluster 1 est celui des moins bons joueurs : Ils ont des valeurs de statistiques moins élevées que la moyenne pour une majorité de statistiques.
+
+- Le cluster 2 est celui des joueurs bons en attaque et assez faible en défense : les statistiques pour lesquelles ils ont des valeurs plus élevées que la moyenne sont en lien avec l'attaque alors que celles pour lesquelles ils ont des valeurs plus faibles que la moyenne sont des statistiques liées à la défense.
+
+- Le cluster 3 est celui des joueurs bons en défense mais faibles en attaque : statistiques plus élevées que la moyenne dans les catégories défensives mais situation inverse pour les catégories offensives.
+
+- Le cluster 4 est celui des meilleurs joueurs bons aussi bien en défense et en attaque : statistiques plus élevées que la moyenne dans une grande majorité de catégories.
+
+<p style="text-align:justify;">Une information qui n'apparaît pas sur ce graphique est qu'il y a senseiblement plus de joueurs dans le cluster 1 que dans les autres. Ainsi ces 4 clusters réunis permettent d'avoir l'ensemble des profils de la NBA.</p>
+
+<p style="text-align:justify;">Désormais intéressons-nous aux clusters des équipes lors de l'année 2016 que nous avons décidé d'étudier. Cette année-là est marquée par le record de victoires absolu par ce qui est considéré comme l'équipe la plus forte de tous les temps en NBA : les Golden State Warriors de 2015-2016. Cette équipe est composée de 3 joueurs "all-star" (parmi les 30 meilleurs de la ligue) ainsi que bon nombre d'autres très bons joueurs.</p>
+</br>
+```{r, echo=FALSE,out.width="100%",fig.cap="caption",fig.show='hold',fig.align='center'}
+knitr::include_graphics(c('ward_team.png','clust_team2.png'))
+``` 
+</br>
+<p style="text-align:justify;">On observe concernant les clusters des équipes de manière attendue que Golden State Warriors (GSW) est une équipe à part qui forme à elle seule un cluster (le 4). Interprétons les clusters :</p>
+
+- Le cluster 1 est composé d'équipes qui sont globalement assez faible en attaque mais solide en défense (ce qui est en phase avec la réputation des équipes correspondantes cette année-là).
+
+- Le cluster 2 est composé d'équipes très orientées vers l'attaque (elles marquent plus que la moyenne notamment).
+
+- Le cluster 3 est composé des moins bonnes équipes de la ligue : très fébrile en défense et qui marquent peu.
+
+- Le cluster 4 de GSW est le seul à être lié à une équipe extrêmement forte en attaque comme en défense.
+
+Ainsi les répartitions faites semblent être en accord avec le déroulement de la saison. 
+
+
+<p style="text-align:justify;">Ces analyses sont très intéressantes et peuvent être faite pour toutes les années depuis 2003. Notre application permet d'aller encore plus loin et de prendre en compte les catégories de joueurs qui composent les équipes notamment dans la formation de clusters.</p>
+
+# Conclusion
+
+<p style="text-align:justify;">Ainsi à l'aide d'un grand nombre de jeux de données et des croisements que l'on a pu en faire nous avons pu mener une étude assez étendue sur le monde de la NBA. A l'occasion de statistiques descriptives nous avons pu mettre en avant de nombreux éléments.</p>
+
+<p style="text-align:justify;">Premièrement on observe une tendance de fond sur l'évolution des salaires en NBA qui semble être assez nettement à la hausse et cela est relayé assez largement dans les médias, cependant une étude un peu plus approfondie montre que la situation n'est pas la même pour tout le monde, les joueurs les mieux payés le sont toujours plus alors que les moins bons n'ont vu que très peu d'évolution. Dans un deuxième temps une étude sur l'évolution du jeu a pu partiellement confirmer une idée largement partagée au sein de la NBA sur la domination des pivots dans ses premières années après sa création avant de montrer l'émergence du poste de meneur ces dernières années. Les statistiques sur les pays d'origine des joueurs montrent aussi que l'augmentation récente de la proportion de joueurs non américains n'est pas qu'un bruit et que la tendance pourrait se poursuivre. Notre étude sur l'âge en NBA permet aussi d'avoir une idée de l'évolution des pics de forme des joueurs. Pour finir sur les statistiques descriptives nous avons évoqué en ouverture ce que notre application shiny, principale force de ce projet permet de visualiser en plus de ce qui a été mentionné.</p>
+
+<p style="text-align:justify;">Ensuite nous avons effectué des prédictions afin d'étudier les résultats que l'on peut obtenir en essayant de prédire l'équipe championne à l'issue d'une saison ainsi que le joueur qui obtiendra le titre de MVP. Nous avons étudié différentes méthodes et celle qui a fourni les meilleurs résultats fut la forêt aléatoire. Nous avons pu obtenir un taux de réussite de prédiction du MVP de 60% et de prédiction du champion de 50%. L'étude approfondie des résultats fournis a été assez informative. Nous avons aussi réalisé des prédictions sur l'évolution du salaire moyen des joueurs en NBA et de la proportion de joueurs étrangers de la partie précédente via des séries chronologiques. Il s'est avéré que les algorithmes ont estimé que les series chronologiques étaient simplement des ARIMA (0,1,0) soit des marches aléatoires. La prédiction a tout de même était intéressante mettant en évidence des tendances de fond.</p>
+
+<p style="text-align:justify;"> Pour finir nous avons étudié via ACP et clustering notamment les liens entre joueurs et équipes afin de mettre en évidence similarités et différences. L'étude d'une année en particulier a permis de mettre en avant des groupes d'équipes et de joueurs se ressemblant.</p>
+
+<p style="text-align:justify;"> Notre application shiny mise à disposition permet d'étendre encore ce spectre de visualisations et prédictions et de pousser de nombreux curseurs plus loin dans la personnalisation de ce qui peut être vu. (https://guerinclement.shinyapps.io/NBA-GUERIN-LABORDE/)</p>

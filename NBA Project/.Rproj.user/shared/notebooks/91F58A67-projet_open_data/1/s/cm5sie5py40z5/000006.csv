@@ -1,0 +1,6 @@
+"0","top_scoreur<-ggplot(data=season_stats6,aes(x=Player,y=sum_PTS,colour=Player))+geom_point()+xlab(""Saison"")+ylab(""Moyenne de PER"")+ggtitle(""Top scoreur"")"
+"2","Warning message:
+"
+"2","Unknown or uninitialised column: `Year`. 
+"
+"0","ggplotly(top_scoreur)"

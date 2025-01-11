@@ -1,0 +1,22 @@
+"0","season_stats6<-season_stats2[,c(""Year"",""Pos"",""PTS"",""MP"",""G"",""BLK"",""PER"",""BPM"",""Player"")]"
+"2","Warning messages:
+"
+"2","1: Unknown or uninitialised column: `Year`. 
+"
+"2","2: Unknown or uninitialised column: `Year`. 
+"
+"0","season_stats6$MPPG<-season_stats6$MP/season_stats6$G"
+"0","season_stats6<-season_stats6 %>%"
+"0","  group_by(Player) %>%"
+"0","  summarise(sum_PTS=sum(PTS),"
+"0","            mean_PTS=mean(PTS),"
+"0","            sum_MP=sum(MP),"
+"0","            mean_MP=mean(MP),"
+"0","            sum_G=sum(G),"
+"0","            mean_G=mean(G),"
+"0","            mean_PER=mean(PER),"
+"0","            mean_BPM=mean(BPM))%>%"
+"0","# keep only top 3 ranks (including ties) & order by ID"
+"0","  filter(rank(desc(sum_PTS), ties.method = ""min"") <= 10)"
+"2","`summarise()` ungrouping output (override with `.groups` argument)
+"

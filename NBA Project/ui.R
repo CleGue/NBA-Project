@@ -1,0 +1,914 @@
+#
+# This is the user-interface definition of a Shiny web application. You can
+# run the application by clicking 'Run App' above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    http://shiny.rstudio.com/
+#
+library(shinydashboard)
+library(shiny)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(highcharter)
+library(lubridate)
+library(stringr)
+library(withr)
+library(treemap)
+library(DT)
+library(shinyBS)
+library(shinyjs)
+library(WDI)
+library(geosphere)
+library(magrittr)
+library(shinycssloaders)
+options(spinner.color="#006272")
+library(timevis)
+
+library(shiny)
+library(shinythemes)
+library(lubridate)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(stringr)
+library(scales)
+library(plotly)
+library(tidyr)
+library(gridExtra)
+library(readxl)
+library(FactoMineR)
+library(randomForest)
+library(factoextra)
+
+#install.packages('rsconnect')
+
+
+source("projet.R")
+#source("MVP_prediction.Rmd")
+# Define UI for application that draws a histogram
+shinyUI(fluidPage(theme = shinytheme("sandstone"),
+        tags$head(
+        tags$style(HTML(".my_style_1{
+        background-image: url(data:image/png;base64,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);
+    }"))),  
+        
+        tags$head(tags$style(
+            HTML('
+         #sidebar {
+            background-color: #dec4de;
+         }
+        
+        #sidebar2 {
+            background-color: #E4E78A;
+        }
+        
+        #sidebar3 {
+            background-color: #77BED5;
+        }
+        
+        #sidebar4 {
+            background-color: #A2E68F;
+        }
+        
+        #sidebar5 {
+            background-color: #E6A28F;
+        }
+        
+        #sidebar6 {
+            background-color: #F6D387;
+        }
+         
+        body, label, input, button, select { 
+          font-family: "Arial";
+        }')
+        )),
+    # Application title
+        
+    titlePanel(
+            fluidRow(
+                column(1,align="center", offset = 4, img(src="https://media.giphy.com/media/GieLeGatWdIY60gpDe/source.gif",height=50,width=50)),
+                column(3,align="center",h1("My NBA", align = "center")),
+                column(1,align="center",img(src="https://media.giphy.com/media/GieLeGatWdIY60gpDe/source.gif",height=50,width=50))
+            )
+    ),
+    
+    h3("Bienvenue sur l'application My NBA",align="center"),
+    
+    h4("Cette application va vous permettre de visualiser les statistiques de la NBA",align="center"),
+    
+    tags$br(),
+    # Create Right Side Logo/Image with Link       
+    
+    navbarPage(title="NBA",
+               
+    tabPanel("Game Evolution",
+             
+             h2("Game Evolution"),
+             
+             p("Dans cette section l'objectif est de visualiser comment le jeu a évolué en fonction 
+               des postes occupés sur le terrrain et des valeurs de statistiques qui leurs sont associées. Ci-dessous on trouve un graphique
+               qui représente pour une statististique donnée l'évolution de celle-ci pour chaque postes."),
+             
+             tags$br(),
+             tags$br(),
+             
+             sidebarLayout(
+                 sidebarPanel(id="sidebar",
+                 radioButtons(
+                     "Choix_Top",
+                     label= h4("5 majeurs (+ 30 Min/Games) :"),
+                     c("Oui" = "TOP",
+                       "Non" = "NOTOP"))
+                 ,
+                 
+                 varSelectInput("evol", "Statistique à visualiser :", season_stats4[,-c(1,2,3,5,7)])
+                 ),
+             
+             mainPanel(
+                 plotlyOutput("distPlotly", height = "80%")
+             )
+             )
+    ),
+    
+    navbarMenu("Prédictions",
+               
+        tabPanel("Récompenses et titres",
+                 
+                 h2("Prédictions des récompenses et titres"),
+                 
+                 p("Dans cette partie nous aborderons la prédiction des titres des joueurs et équipes"),
+                 
+                 tags$br(),
+                 tags$br(),
+                 
+                 sidebarLayout(
+                     sidebarPanel(id='sidebar2',
+                         radioButtons(
+                             "Choix_Pred",
+                             label= h4("Choix de la prédiction :"),
+                             c("MVP" = "MVPlayer",
+                               "Champion" = "Champion")),
+                         selectInput("year_pred", label = h4("Choix de l'année : "), 
+                                     choices=c("toutes les années",unique(as.character(sort(season_statsMVP$Year)))),
+                                     selected = 1)
+                     ),
+                 mainPanel(
+                     conditionalPanel(
+                         condition = "input.Choix_Pred == 'MVPlayer'",
+                          DT::dataTableOutput("table_MVP"),
+                     ),
+                     conditionalPanel(
+                         condition =  "input.Choix_Pred == 'Champion'",
+                         DT::dataTableOutput("table_champ")
+                     )
+                 )
+                 
+                 )
+                 
+        ),
+        
+        tabPanel("Salaire",
+                 
+                 h2("Prédictions des salaires"),
+                 
+                 p("Dans cette partie nous aborderons la prédiction des salaires des joueurs."),
+                 
+                 tags$br(),
+                 tags$br(),
+                 tags$br(),
+                 
+                 sidebarPanel(id='sidebar2',
+                              radioButtons(
+                                  "choice_sal_pred",
+                                  label= h4("Choix de la visualisation :"),
+                                  c("Evolution des salaires" = "evol",
+                                    "Prédiction des salaires" = "pred")),
+                 ),
+                
+                mainPanel(
+                    plotOutput("distPlot_pred_sal")
+                )
+    ),
+    tabPanel("Origine des joueurs",
+             
+             h2("Prédictions de l'évolution de l'origine des joueurs"),
+             
+             p("Dans cette partie nous effectuerons une prédiction de la proportion de joueur non américains en NBA"),
+             
+             tags$br(),
+             tags$br(),
+             tags$br(),
+             
+             sidebarPanel(id='sidebar2',
+                          radioButtons(
+                              "choice_country_pred",
+                              label= h4("Choix de la visualisation :"),
+                              c("Evolution de la présence de pays étranger" = "evol",
+                                "Prédiction" = "pred")),
+             ),
+             mainPanel(
+                    plotOutput("distPlot_stranger")
+             )
+             
+    )
+    
+    ),
+    
+    
+    tabPanel("Big five",
+             
+             h2("Big Five"),
+             
+             p("Choisissez une statistique afin de visualiser la meilleure équipe possible selon celle-ci"),
+             
+             tags$br(),
+             tags$br(),
+             
+             sidebarPanel(id='sidebar3',
+                          
+                 selectInput("big_five2", label = h4("Choix du Big Five : "), 
+                                           choices=c(colnames(stats_players[,c(7:13)])),
+                                           selected = 1),
+                 selectInput("year_bf2", label = h4("Choix de la saison : "), 
+                                           choices=c("toutes les années",unique(as.character(sort(season_statsMVP$Year)))),
+                                           selected = 1)
+             ),
+             
+             mainPanel(
+                 DT::dataTableOutput("table_big")
+             )
+    ),
+    
+    navbarMenu("Statistiques",
+               
+               tabPanel("Salaire",
+                        
+                        h2("Statistiques sur le salaire"),
+                        
+                        p("Dans cette section nous allons étudier les salaires des joueurs et les masses salariales des équipes."),
+                        
+                        tags$br(),
+                        tags$br(),
+                        
+                        sidebarLayout(
+                            sidebarPanel(id="sidebar",
+                                         
+                                selectInput("type", label = h4("Par Joueur / Equipe :"), 
+                                            choices=c("Par joueur" = "Player",
+                                                      "Par équipe" = "team"),
+                                            selected = 1),
+                                conditionalPanel(
+                                    condition="input.type=='Player'",
+                                    
+                                    selectInput("Choix_team", label = h4("Choix de l'équipe : "), 
+                                                choices=c("toutes les équipes",unique(as.character(NBA_Salary_History$Team))),
+                                                selected = 1),
+                                    
+                                    selectInput("Choix_season", label = h4("Choix de la saison : "), 
+                                                choices=c("toutes les saisons",unique(as.character(NBA_Salary_History$Season))),
+                                                selected = 1),
+                                    
+                                    selectInput("Choix_player", label = h4("Choix du joueur : "), 
+                                                choices=c("tous les joueurs",unique(as.character(NBA_Salary_History_Players$Player))),
+                                                selected = 1),
+                                    
+                                    
+                                    sliderInput("Number of Team/Player",
+                                                label=h4("Visualiser le TOP :"),
+                                                min = 01,
+                                                max = 30,
+                                                value = 06)
+                                ),
+                                conditionalPanel(
+                                    condition="input.type=='team'",
+                                    
+                                    selectInput("Choix_team2", label = h4("Choix de l'équipe : "), 
+                                                choices=c("toutes les équipes",unique(as.character(NBA_Salary_History$Team))),
+                                                selected = 1)
+                                )
+                                
+                            ),
+                            # Show a plot of the generated distribution
+                            mainPanel(
+                                plotOutput("distPlot")
+                            )
+                        )
+               ),
+               
+               tabPanel("Pays d'origine",
+                        
+                        h2("Statistiques sur les pays d'origine des joueurs"),
+                     
+                         tags$br(),
+                         tags$br(),
+                     
+            sidebarLayout(
+                     sidebarPanel(id="sidebar",
+                                  
+                        selectInput("season_c", label = h4("Choix de l'équipe : "), 
+                                    choices=c("toutes les années",unique(as.character(sort(season_statsMVP$Year)))),
+                                    selected = 1),
+                        
+                        
+                        radioButtons("cam_tab", h4("Choix d'une visualisation :"),
+                                     choices = list("Camenbert" = 1, "Tableau" = 2,"Courbe"=3
+                                     ),selected = 1),
+                        
+                        # Show a plot of the generated distribution
+                        conditionalPanel(
+                            condition="input.cam_tab == 2",
+                            
+                            selectInput("count_choice", label = h4("Choix de la nationalité : "), 
+                                        choices=c("toutes les nationalités",unique(as.character(sort(season_statsMVP$country)))),
+                                        selected = 1),
+                        )
+                        ),
+                mainPanel(
+                    conditionalPanel(
+                        condition = "input.cam_tab == 1",
+                        plotOutput("distPlot2")
+                    ),
+                    conditionalPanel(
+                        condition =  "input.cam_tab == 2",
+                        DT::dataTableOutput("table2")
+                    ),
+                    conditionalPanel(
+                        condition =  "input.cam_tab == 3",
+                        plotlyOutput("distPlotly3", height = "80%"),
+                    )
+                )
+            )
+            
+        ),    
+               
+        tabPanel("Joueurs",
+                 
+                 
+                 h2("Statistiques sur les joueurs"),
+                     
+                     p("Dans cette section nous allons étudier les différentes statistiques pour les joueurs."),
+                     
+                     tags$br(),
+                     tags$br(),
+                     
+                     sidebarLayout(
+                         sidebarPanel(id="sidebar",
+                             
+                             selectInput("year_bf", label = h4("Choix de la saison : "), 
+                                                       choices=c("toutes les années",unique(as.character(sort(season_statsMVP$Year)))),
+                                                       selected = 1)
+                             ),
+                         
+                         mainPanel(
+                             DT::dataTableOutput("table_stat")
+                         )
+                     )
+            ),
+    
+    
+            tabPanel("Équipes",
+                     
+                     h2("Statistiques sur les équipes"),
+                    
+                     
+                     tags$br(),
+                     tags$br(),
+                     
+                     fluidRow(
+                         column(1, h4("Champion")),
+                         column(1, img(src="https://media.giphy.com/media/3oKIPBVk5tlHZjE29W/source.gif", align = "center",height=40,width=40))
+                     ),
+                     
+                      tags$style(".small-box.bg-yellow { background-color: #ffd70f !important; color: #000000 !important; }"),
+                      tags$style(".small-box.bg-blue { background-color: #0f7fff !important; color: #000000 !important; }"),
+                      tags$style(".small-box.bg-red { background-color: #e31a10 !important; color: #000000 !important; }"),
+                      
+                     fluidRow(
+                         valueBoxOutput("Champion"),
+                         valueBoxOutput("Eastern"),
+                         valueBoxOutput("Weastern")
+                      ),
+                     
+                     tags$br(),
+                     tags$br(),
+                     
+                     fluidRow(
+                         column(1, h4("Bilan")),
+                         column(1, img(src="https://media.giphy.com/media/5h5HJRTkYEvT2o6yvJ/source.gif", align = "center",height=50,width=50))
+                     ),
+                     
+                     tags$br(),
+                     tags$br(),
+                     
+                     sidebarPanel(
+                         selectInput("season_team", label = h4("Choix de la saison : "), 
+                                     choices=c("toutes les saisons",unique(as.character(sort(season_statsMVP$Year)))),
+                                     selected = 1),
+                         
+                         varSelectInput("stat_team", "Choix de la statistique : ", rankings2[,-1])
+                     ),
+                     
+                     mainPanel(
+                         plotlyOutput("distPlotly2", height = "60%")
+                     ),
+                     
+                     tags$br(),
+                     tags$br(),
+                     
+                     fluidRow(
+                         column(1, h4("Palmarès")),
+                         column(1, img(src="https://media.giphy.com/media/8x26UijMeN8ME/source.gif", align = "center",height=50,width=50))
+                     ),
+                     
+                     tags$br(),
+                     tags$br(),
+                     
+                     mainPanel(
+                         DT::dataTableOutput("table_tot")
+                     )
+                     
+            ),
+    
+        tabPanel("âge",
+                 
+                 h2("Statistiques sur l'âge des joueurs"),
+                     
+                     p("Dans cette section nous allons étudier les statistiques des joueurs en fonction de l'âge."),
+                     
+                     tags$br(),
+                     tags$br(),
+                     
+                     sidebarLayout(
+                         
+                         sidebarPanel(id="sidebar",
+                                      
+                            radioButtons("radio_age", h4("Avec ou Sans Quantile :"),
+                                                 choices = list("Avec" = 1, "Sans" = 2
+                                                    ),selected = 1),
+                            
+                            varSelectInput("stat_age", "Choix de la statistique : ", age[,-1]),
+                         
+                             conditionalPanel(
+                                 
+                                condition = "input.radio_age== 2",
+                                
+                                selectInput("choice_age", label = h4("Choix de l'âge : "), 
+                                                     choices=c("tous les ages",unique(as.character(sort(age$Age)))),
+                                                     selected = 1),
+                                
+                                
+                                checkboxGroupInput("nb_play_check", "Restriction en fonction du nombre d'années effectuées en NBA :",
+                                                    c("Oui" = "yes",
+                                                    "Non" = "no")),
+                                
+                                 
+                                     # Show a plot of the generated distribution
+                                     conditionalPanel(
+                                         condition="input.nb_play_check == 'yes'",
+                                         
+                                         sliderInput("NOYP",
+                                                     label=h4("Nombre d'années effectuées :"),
+                                                     min = 01,
+                                                     max = max(data_age_draft$`Nombre d'annees en NBA`),
+                                                     value = 05)
+                                 )
+                             )
+                    ),
+                         
+                         
+                         mainPanel(
+                      
+                                 conditionalPanel(
+                                     condition = "input.radio_age == 1",
+                                     plotOutput("distPlot_age_quantile")
+                                 ),
+                                 
+                                 conditionalPanel(
+                                     condition =  "input.radio_age == 2",
+                                     plotOutput("distPlot5")
+                                 )
+                         )
+                     )
+                    
+                     
+            ),
+            
+        tabPanel("Draft",
+                 
+                 h2("Statistiques sur les drafts"),
+                         
+                         p("Dans cette section nous allons étudier les statistiques sur les différentes drafts."),
+                         
+                         tags$br(),
+                         tags$br(),
+                     
+                     sidebarLayout(
+                         sidebarPanel(id="sidebar",
+                
+                             
+                             selectInput("choice_draft", label = h4("Choix de la draft : "), 
+                                         choices=c("toutes les drafts",unique(as.character(sort(d_draft$draft_year)))),
+                                         selected = 1),
+                             
+                             varSelectInput("stat_draft", "Choix de la statistique : ", d_draft[,-c(1:3)]),
+                             # Show a plot of the generated distribution
+                             
+                             conditionalPanel(
+                                 condition="input.choice_draft== 'toutes les drafts'",
+                                 
+                                 selectInput("type_draft", label = h4("Choix du profil : "), 
+                                             choices=c("Draft","Round 1","Round 2"),
+                                             selected = 1),
+                                 
+                             ),
+                             
+                             conditionalPanel(
+                                 condition="input.type_draft=='Round 1'  | input.type_draft=='Round 2'",
+                                 
+                                 sliderInput("NumberDraft",
+                                             label=h4("Visualiser le TOP :"),
+                                             min = 01,
+                                             max = 40,
+                                             value = 10)
+                                 
+                             )
+                         ),
+        
+                         mainPanel(
+                             plotOutput("distPlot6")
+                         )
+                )
+    )
+    ),
+               tabPanel("Records",
+                        
+                        h2("Records des joueurs"),
+                 
+                            p("Ici nous allons aborder la partie records des joueurs."),
+                 
+                 sidebarLayout(
+                     sidebarPanel(id="sidebar4",
+                         selectInput("records", label = h4("Statistique :"), 
+                                     choices=c("Points" = "Points",
+                                               "Bloquages" = "Bloquages",
+                                               "Interceptions" = "Interceptions",
+                                               "Passes Décisives" = "Assists",
+                                               "Matchs Joués" = "Matches",
+                                               "Meilleure saisons réalisées" = "Saisons"),
+                                     selected = 1),
+                         sliderInput("Numbertop",
+                                     label=h4("Visualiser le TOP :"),
+                                     min = 01,
+                                     max = 20,
+                                     value = 10)
+                     ),
+                     # Show a plot of the generated distribution
+                     mainPanel(
+                         plotOutput("distPlot_Records")
+                     )
+                 )
+        ),
+    navbarMenu("Forces",
+               
+        tabPanel("Joueurs",
+                 
+                 fluidRow(
+                     column(1,offset=2,img(src="https://media.giphy.com/media/xUA7aPytwoPGzy3u7K/source.gif", align = "center",height=50,width=50)),
+                     column(5, h3("NBA Experts : qu'est-ce qu'un joueur fort ?")),
+                     column(1, img(src="https://media.giphy.com/media/xUA7aPytwoPGzy3u7K/source.gif", align = "center",height=50,width=50))
+                 ),
+                 
+                 tags$br(),
+                 tags$br(),
+                 
+                 conditionalPanel(
+                     condition="($('html').hasClass('shiny-busy'))",
+                     img(src="https://media.giphy.com/media/52qtwCtj9OLTi/giphy.gif")
+                     ),
+                 
+                     conditionalPanel(
+                         condition="!($('html').hasClass('shiny-busy'))",
+                         
+                 sidebarLayout(
+                     sidebarPanel(id="sidebar5", width=3,
+                         selectInput("st_year", label = h4("Choix de la saison : "), 
+                                 choices=c("toutes les saisons",unique(as.character(sort(season_stats_PCA$Year)))),
+                                 selected = 1),
+                         
+                         conditionalPanel(
+                             condition = "input.visu_pf_cc == 'cc'",
+                                 selectInput("poste", label = h4("Choix du poste : "), 
+                                         choices=c("toutes les postes",unique(as.character(season_stats_PCA$Pos))),
+                                         selected = 1),
+                         ),
+                         
+                         varSelectInput("st", "Choix de la métrique : ", season_stats_PCA[,c(13:20)]),
+                         
+                         radioButtons(
+                             "visu_pf_cc",
+                             label= h4("Choix de visualisation :"),
+                             c("Cercle des corrélations" = "cc",
+                               "Plan Factoriel" = "pf"))
+                         ,
+                 ), 
+                 
+ 
+                 mainPanel (
+                     fluidRow(
+                         column(6,conditionalPanel(
+                             condition = "input.visu_pf_cc == 'cc'",
+                             plotOutput("distPlot_ACP"),
+                         ), conditionalPanel(
+                             condition = "input.visu_pf_cc == 'pf'",
+                             plotOutput("distPlot_ACP_pf"),
+                         )),
+                         column(4,h2("Description"),p("En  NBA il existe plusieurs métriques pour quantifier la qualité d'un joueur.
+                                    Si l'on se pose la question de trouver ce qui caractérise un joueur fort il faut pour cela regarder les statistiques liées à ces métriques. 
+                                    Ici il est possible de choisir une métrique et d'observer celles qui sont le plus corrélées avec cette dernière qui apparaît en pointillé.
+                                    Plus une corrélation est élevée plus la statistique concernée est liée à la métrique choisie.")),
+                     )
+                   )
+                 )),
+                 
+              
+                 tags$br(),
+                 tags$br(),
+                 
+                 DT::dataTableOutput("table_s")
+                 
+                 
+        ),
+        
+        tabPanel("Équipes",
+                 
+                 fluidRow(
+                     column(1,offset=2,img(src="https://media.giphy.com/media/xUA7aPytwoPGzy3u7K/source.gif", align = "center",height=50,width=50)) ,
+                     column(5, h3("NBA Experts : qu'est-ce qu'une équipe forte ?")),
+                     column(1, img(src="https://media.giphy.com/media/xUA7aPytwoPGzy3u7K/source.gif", align = "center",height=50,width=50))
+                 ),
+                 
+                 tags$br(),
+                 tags$br(),
+                 tags$br(),
+                 tags$br(),
+                 
+                 conditionalPanel(
+                     condition="($('html').hasClass('shiny-busy'))",
+                     img(src="https://media.giphy.com/media/52qtwCtj9OLTi/giphy.gif")
+                 ),
+                 
+                 conditionalPanel(
+                     condition="!($('html').hasClass('shiny-busy'))",
+                     
+                 sidebarLayout(
+                 sidebarPanel(id="sidebar5", width=3,
+                        selectInput("st_year_team", label = h4("Choix de la saison : "), 
+                                              choices=c("toutes les saisons",unique(as.character(sort(strong_team$Year)))),
+                                              selected = 1),
+                        varSelectInput("str_team", "Choix de la métrique : ", strong_team[,c(15:17)])
+                ), 
+                mainPanel(
+                    fluidRow(
+                         column(6,plotOutput("distPlot_ACP_team")),
+                         column(5,h2("Description"),p("En  NBA il existe plusieurs métriques pour quantifier la qualité d'une équipe.
+                                    Si l'on se pose la question de trouver ce qui caractérise une équipe forte il faut pour cela regarder les statistiques liées à ces métriques. 
+                                    Ici il est possible de choisir une métrique et d'observer celles qui sont le plus corrélées avec cette dernière qui apparaît en pointillé.
+                                    Plus une corrélation est élevée plus la statistique concernée est liée à la métrique choisie.")),
+                     )
+                )
+                 )),
+                 tags$br(),
+                 tags$br(),
+                 tags$br(),
+                 tags$br(),
+                 tags$br(),
+                 tags$br(),
+                 DT::dataTableOutput("table_str_team")
+        )
+    ),
+    navbarMenu("Liens",
+               
+        tabPanel("Équipes",
+                 
+                 fluidRow(
+                     column(3, h3(" Liens : Clusters par équipe")),
+                     column(1, img(src="https://media.giphy.com/media/xUA7aPytwoPGzy3u7K/source.gif", align = "center",height=50,width=50))
+                 ),
+                 
+                 p("Dans cette partie on va former des clusters c'est à dire des groupes d'équipes se ressemblant par rapport
+                  à leurs statistiques et à leurs styles de jeu (offensif, défensif, etc..). Ici le nombre de clusters est fixé à 4.
+                  Nous allons utiliser ici un ensemble de statistiques comme les points marqués, encaissés..."),
+                 
+                 tags$br(),
+                 tags$br(),
+                 
+                 conditionalPanel(
+                     condition="($('html').hasClass('shiny-busy'))",
+                     img(src="https://media.giphy.com/media/52qtwCtj9OLTi/giphy.gif")
+                 ),
+                 
+                 conditionalPanel(
+                     
+                     condition="!($('html').hasClass('shiny-busy'))",
+                     
+                     sidebarPanel(id="sidebar6",
+                                  selectInput("seas", label = h4("Choix de la saison : "), 
+                                              choices=c(unique(as.character(sort(team$Year)))),
+                                              selected = 1)
+                     ),
+                     
+                     tags$br(),
+                     tags$br(),
+                     
+                     
+                     h4(" A - Classification ascendante hiérarchique"),
+                     
+                     p("Nous visualisons d'abord la classification ascendante hiérarchique. A chaque carré rouge correspond un cluster/groupe."),
+                     
+                     plotOutput("distPlot_lien"),
+                     
+                     htmlOutput("text_cluster_team"),
+                     
+                     h4(" B - Caractéristiques des clusters"),
+                     
+                     p("Nous visualisons ensuite les caractéristiques des groupes. Les barres rouges indiquent que le cluster possède des valeurs 
+                    plus élevées que la moyenne pour la statistique concernée alors qu'une barre bleue indique l'inverse."),
+                     
+                     plotOutput("distPlot_lien2")
+                 )
+    ),
+    
+        tabPanel("Joueurs",
+                 
+                 fluidRow(
+                     column(3, h3(" Liens : Clusters par joueurs")),
+                     column(1, img(src="https://media.giphy.com/media/xUA7aPytwoPGzy3u7K/source.gif", align = "center",height=50,width=50))
+                 ),
+                 
+                 p("Ici nous faisons des clusters selon les caractéristiques des joueurs. Ces caractéristiques vont nous permettre dans un premier temps
+                   de faire des clusters de joueurs et dans un seconds temps des clusters d'équipes selon leurs effectifs."),
+                 
+                 conditionalPanel(
+                     condition="($('html').hasClass('shiny-busy'))",
+                     img(src="https://media.giphy.com/media/52qtwCtj9OLTi/giphy.gif")
+                 ),
+                 
+                 conditionalPanel(
+                     
+                     condition="!($('html').hasClass('shiny-busy'))",
+                     
+                 sidebarPanel(id="sidebar6",
+                              selectInput("seas_play", label =  h4("Choix de la saison : "), 
+                                          #choices=c("toutes les années",unique(as.character(sort(team$Year)))),
+                                          choices=years_clust[1:15],
+                                          selected = 1)
+                 ),
+                 h4(""),
+                 
+                 tags$br(),
+                 tags$br(),
+                 
+                 h4(" A - Tableau : Clusters des joueurs"),
+                 
+                 p("Ci-dessous le tableau des statistiques des joueurs avec le cluster qui leur a été affecté."),
+                 
+                 DT::dataTableOutput("table_lien"),
+                 
+                 tags$br(),
+                 
+                 h4(" B - Caractéristiques des clusters de joueurs"),
+                 
+                 p("Nous pouvons visualiser les caractéristiques des différents clusters.
+                 De manière générale ici nous allons retrouver un cluster de joueur 
+                 très forts et très complets, 
+                 un autre avec des joueurs principalement fort sur les statistiques
+                 offensives, un autre sur les statistiques defensives et enfin un dernier cluster de joueurs moins bon que la moyenne sur 
+                 toutes les statistiques."),
+                 
+                 plotOutput("distPlot_lien3"),
+                 
+                 tags$br(),
+                 
+                 h4(" C - Clusters des équipes par effectifs"),
+                 
+                 p("Voici l'arbre des clusters des équipes en fonction de leurs effectifs."),
+                 
+                 plotOutput("distPlot_lien_effect"),
+                 htmlOutput("text_cluster_player"),
+                 
+                 tags$br(),
+                 
+                 h4(" D - Caractéristiques des clusters des équipes par effectifs"),
+                 
+                 p("Ce tableau decrit les clusters des équipes en fonction des types de joueur (par clusters) qui les composent."),
+                 
+                 plotOutput("distPlot_lien_effect2")
+                 )
+                 
+        ),
+    
+    tabPanel("équipes + joueurs",
+                 
+                 fluidRow(
+                     column(6, h3(" Liens : Clusters des équipes en fonction des effectifs ET des statistiques")),
+                     column(1, img(src="https://media.giphy.com/media/xUA7aPytwoPGzy3u7K/source.gif", align = "center",height=50,width=50))
+                 ),
+                 
+                 p("Ici nous allons essayer de faire des clusters des équipes en fonction des statistiques de ces équipes et des joueurs qui les composent."),
+                 
+                 tags$br(),
+                 tags$br(),
+             
+             conditionalPanel(
+                 condition="($('html').hasClass('shiny-busy'))",
+                 img(src="https://media.giphy.com/media/52qtwCtj9OLTi/giphy.gif")
+             ),
+             
+             conditionalPanel(
+                 
+                 condition="!($('html').hasClass('shiny-busy'))",
+                 
+                 sidebarPanel(id="sidebar6",
+                              selectInput("seas_tp", label = h4("Choix de la saison : "), 
+                                          #choices=c(unique(as.character(sort(team$Year))))
+                                          choices=years_clust[1:15],
+                                          selected = 1)
+                 ),
+                 
+                 h4(""),
+                 
+                 tags$br(),
+                 tags$br(),
+                 
+                 h4(" A - Classification ascendante hiérarchique"),
+                 
+                 p("Ci-dessous la classification ascendante hiérarchique des équipes."),
+                 
+                 plotOutput("distPlot_lien4"),
+                 htmlOutput("text_cluster_player_team"),
+                 
+                 tags$br(),
+                 tags$br(),
+                 
+                 h4(" B - Caractéristiques des clusters"),
+                 
+                 p("Voici les caractéristiques des clusters."),
+                 
+                 plotOutput("distPlot_lien5")
+        )
+    )
+    ),
+    
+    navbarMenu("Variables",
+               
+               tabPanel(title="Joueurs",
+                        
+                        h2("Variables Joueurs"),
+                        
+                        p("Dans cette partie nous allons faire une rapide description des variables utilisées pour les joueurs."),
+                        
+                        tags$br(),
+                        tags$br(),
+                        
+                        DT::dataTableOutput("table_var_players"),
+               ),
+               
+               tabPanel(title="équipes",
+                        
+                        h2("Variables équipes"),
+                        
+                        p("Dans cette partie nous allons faire une rapide description des variables utilisées pour les équipes."),
+                        
+                        tags$br(),
+                        tags$br(),
+                        
+                        DT::dataTableOutput("table_var_team"),
+                        
+               ),
+               
+               tabPanel(title="Métriques",
+                        
+                        h2("Variables métriques"),
+                        
+                        p("Dans cette partie nous allons faire une rapide description des variables utilisées pour noter les joueurs."),
+                        
+                        tags$br(),
+                        tags$br(),
+                        
+                        DT::dataTableOutput("table_var_met"),
+               )
+    ),
+    
+    tabPanel("A propos",
+             fluidRow(
+                 column(6, img(src="https://media.giphy.com/media/LqgTBpqlPXjJUJqgTM/source.gif")),
+                 column(6, h3("Cette application a été realisée par GUERIN Clement et LABORDE Maxime"),p("Son objectif est de permettre
+                d'observer de nombreuses statistiques sur différents aspects de la NBA. L'application permet à l'utilisateur de mettre en avant et de déduire
+                         des observations sur le jeu de cette ligue de basket. On retrouve aussi des prédictions sur le futur de la ligue.")),
+                 )
+)
+)
+))

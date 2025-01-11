@@ -1,0 +1,2 @@
+"0","ind<-which(stats_players$Annee==2018 & stats_players$Minutes>1500)"
+"0","DT::datatable(stats_players[ind,])"

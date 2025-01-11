@@ -1,0 +1,2 @@
+"0","pts_par_poste<-ggplot(data=season_stats4,aes(x=Year,y=(Points/Matches),colour=Pos,group=Pos))+geom_line()+xlab(""Saison"")+ylab(paste0(""Moyenne de "", ""Points""))+ggtitle(paste0(paste0(""Moyenne de "", ""Points""),  "" par matches par poste""))"
+"0","ggplotly(pts_par_poste)"

@@ -1,0 +1,4 @@
+"0","#Michael JORDAN"
+"0","ind<-which(NBA_Salary_History_Players$Player==""Michael Jordan"")"
+"0","sal_m_play<-NBA_Salary_History_Players[ind,]"
+"0","ggplot(data=sal_m_play, aes(x=Season, y=Salary/10**6,fill=Salary/10**6)) +geom_bar(stat=""identity"") + ylab(""Salaire en millions de dollars"") + xlab(""Saison"") + ggtitle(paste0(""Evolution du salaire de : "",""Michael Jordan""))+ coord_flip()"

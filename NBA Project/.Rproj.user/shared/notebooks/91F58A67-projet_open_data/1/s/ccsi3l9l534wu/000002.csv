@@ -1,0 +1,43 @@
+"0","library(dplyr); library(data.table)"
+"2","Warning messages:
+"
+"2","1: Unknown or uninitialised column: `Year`. 
+"
+"2","2: Unknown or uninitialised column: `Year`. 
+"
+"2","3: Unknown or uninitialised column: `Year`. 
+"
+"2","4: Unknown or uninitialised column: `Year`. 
+"
+"2","5: Unknown or uninitialised column: `Year`. 
+"
+"2","6: Unknown or uninitialised column: `Year`. 
+"
+"2","7: Unknown or uninitialised column: `Year`. 
+"
+"2","8: Unknown or uninitialised column: `Year`. 
+"
+"2","data.table 1.13.4 using 4 threads (see ?getDTthreads).  Latest news: r-datatable.com
+"
+"2","
+Attachement du package : ‘data.table’
+
+"
+"2","The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week, yday, year
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+"
+"0","season_stats6<-season_stats2[,c(""Year"",""Pos"",""PTS"",""MP"",""G"",""BLK"",""PER"",""BPM"",""Player"")]"
+"0","season_stats6$MPPG<-season_stats6$MP/season_stats6$G"
+"0","season_stats6<-season_stats6 %>%"
+"0","  filter(MPPG>30) %>%"
+"0","  filter(G>50)%>%"
+"0",""
+"0","# keep only top 3 ranks (including ties) & order by ID"
+"0","  filter(rank(desc(BPM), ties.method = ""min"") <= 10)"

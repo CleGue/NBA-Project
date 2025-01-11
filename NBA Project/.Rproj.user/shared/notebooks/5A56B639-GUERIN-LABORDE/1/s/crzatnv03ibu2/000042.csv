@@ -1,0 +1,8 @@
+"0","#package forecast"
+"0","#library(forecast)"
+"0","fit<-auto.arima("
+"0","  time_ser,"
+"0","  stationary = FALSE,"
+"0","  seasonal = FALSE"
+"0",")"
+"0","plot(forecast(fit,h=12),ylab=""proportion de joueurs non américain en NBA"",main=""Prédiction joueurs étrangers en NBA ARIMA(0,1,0)"")"

@@ -1,0 +1,8 @@
+"0","pts<-season_stats7[order(-season_stats7$sum_PTS),]"
+"0","pts<-pts[1:10,]"
+"0","p<-ggplot(data=pts, aes(x=reorder(Player,sum_PTS), y=sum_PTS,label=sum_PTS)) +"
+"0","geom_bar(stat=""identity"") +"
+"0","#,fill = ""red"""
+"0","geom_text(size = 5, position = position_stack(vjust = 0.5))+ ylab(""Points Marqués"") + xlab(""Joueurs"") + ggtitle(""Classement des joueurs par Points marqués depuis 1950"")"
+"0","p<-p + coord_flip()"
+"0","ggplotly(p)"
